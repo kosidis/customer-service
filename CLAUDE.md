@@ -36,6 +36,7 @@ dotnet build
 dotnet test tests/CustomerService.UnitTests /p:CollectCoverage=true      # fails below 80% line coverage
 dotnet test tests/CustomerService.IntegrationTests                       # SQL Server via Testcontainers
 INTEGRATION_TEST_DB=sqlite dotnet test tests/CustomerService.IntegrationTests   # no container runtime needed
+cd tests/CustomerService.UnitTests && dotnet stryker                     # mutation tests; never from the root (see the `mutation` skill)
 dotnet run --project src/CustomerService.Api                             # needs SQL Server and a migrated DB
 docker compose up --build                                                # full stack on http://localhost:8080
 ```

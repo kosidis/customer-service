@@ -161,6 +161,16 @@ Without a container runtime, run the same suite against SQLite in-memory:
 INTEGRATION_TEST_DB=sqlite dotnet test tests/CustomerService.IntegrationTests
 ```
 
+Mutation tests with [Stryker.NET](https://stryker-mutator.io/docs/stryker-net/introduction/) check that the unit tests would catch real bugs, not only that they run the code. Stryker makes small changes to the API code and reports each one no test catches:
+
+```bash
+dotnet tool restore
+cd tests/CustomerService.UnitTests
+dotnet stryker
+```
+
+Run it from the unit test folder, not the repo root: from the root, Stryker picks up the solution and runs the integration tests too. Settings are in `tests/CustomerService.UnitTests/stryker-config.json`. The HTML report goes to `tests/CustomerService.UnitTests/StrykerOutput/<timestamp>/reports/mutation-report.html`.
+
 ## Adding a migration
 
 ```bash
