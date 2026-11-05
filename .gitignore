@@ -1,0 +1,13 @@
+bin/
+obj/
+TestResults/
+coverage-report/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+.env
+.DS_Store
+.tokensave/
+.claude/worktrees/

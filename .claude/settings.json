@@ -1,0 +1,28 @@
+{
+  "enabledPlugins": {
+    "shift-workflow@shift": true,
+    "shift-core@shift": true,
+    "shift-mcp-context-facade@shift": true,
+    "shift-cost-tracker@shift": true,
+    "superpowers@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "github@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "shift": {
+      "source": {
+        "source": "github",
+        "repo": "agileactors/agile-actors-shift"
+      }
+    }
+  },
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "model": "claude-sonnet-5",
+  "effortLevel": "medium",
+  "advisorModel": "claude-fable-5",
+  "outputStyle": "shift-workflow:simple-explanatory"
+}
