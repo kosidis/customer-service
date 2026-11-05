@@ -28,6 +28,16 @@ run "no unmigrated model changes" dotnet ef migrations has-pending-model-changes
 run "unit tests + 80% coverage gate" dotnet test tests/CustomerService.UnitTests --nologo /p:CollectCoverage=true
 run "integration tests (SQLite)" env INTEGRATION_TEST_DB=sqlite dotnet test tests/CustomerService.IntegrationTests --nologo
 
+chart=deploy/helm/customer-service
+if command -v helm >/dev/null 2>&1; then
+  for env in dev staging prod; do
+    run "helm lint ($env)" helm lint "$chart" -f "$chart/values-$env.yaml" --quiet
+    run "helm template ($env)" sh -c "helm template customer-service '$chart' -f '$chart/values-$env.yaml' >/dev/null"
+  done
+else
+  echo "==> helm not installed: skipping chart checks (brew install helm)" >&2
+fi
+
 if [ -n "$failed" ]; then
   printf "pre-pr-checks FAILED:%b\n" "$failed" >&2
   exit 1

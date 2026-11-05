@@ -242,7 +242,18 @@ public class CustomersApiTests(CustomerApiFactory factory) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    // GET /health
+    // GET /health, /health/live, /health/ready
+
+    [Theory]
+    [InlineData("/health/live")]
+    [InlineData("/health/ready")]
+    public async Task ProbeEndpoints_DatabaseReachable_Return200(string path)
+    {
+        var response = await _client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Healthy", await response.Content.ReadAsStringAsync());
+    }
 
     [Fact]
     public async Task Health_DatabaseReachable_Returns200()

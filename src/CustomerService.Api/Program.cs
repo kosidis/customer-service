@@ -1,6 +1,8 @@
 using CustomerService.Api.Data;
 using CustomerService.Api.Errors;
 using CustomerService.Api.Services;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,28 +20,69 @@ builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddOpenApi();
-builder.Services.AddHealthChecks().AddDbContextCheck<CustomerDbContext>("database");
+builder.Services.AddHealthChecks().AddDbContextCheck<CustomerDbContext>("database", tags: [ReadinessTag]);
 
-var app = builder.Build();
+// Disposed on exit so the console logger flushes the failure below before the process ends.
+await using var app = builder.Build();
 
-if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
+// Fail fast with exit code 1 instead of letting the exception go unhandled: as PID 1 in a
+// container the runtime's abort is ignored and the process hangs until something kills it.
+try
 {
-    using var scope = app.Services.CreateScope();
-    await scope.ServiceProvider.GetRequiredService<CustomerDbContext>().Database.MigrateAsync();
+    if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
+    {
+        await MigrateDatabaseAsync(app.Services);
+    }
+
+    app.UseExceptionHandler();
+    app.UseStatusCodePages();
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.MapOpenApi();
+    }
+
+    app.MapControllers();
+    app.MapHealthChecks("/health");
+    // Liveness runs no checks, so a database outage never makes Kubernetes restart the pod.
+    app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+    app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains(ReadinessTag) });
+
+    await app.RunAsync();
+    return 0;
 }
-
-app.UseExceptionHandler();
-app.UseStatusCodePages();
-
-if (app.Environment.IsDevelopment())
+catch (Exception exception) when (exception is not HostAbortedException)
 {
-    app.MapOpenApi();
+    app.Logger.LogCritical(exception, "Host terminated unexpectedly");
+    return 1;
 }
-
-app.MapControllers();
-app.MapHealthChecks("/health");
-
-app.Run();
 
 // Exposed so WebApplicationFactory<Program> can reach it from the integration tests.
-public partial class Program;
+public partial class Program
+{
+    private const string ReadinessTag = "ready";
+    private const int SqlErrorDatabaseAlreadyExists = 1801;
+    private const int MaxMigrationAttempts = 5;
+
+    private static async Task MigrateDatabaseAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var database = scope.ServiceProvider.GetRequiredService<CustomerDbContext>().Database;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await database.MigrateAsync();
+                return;
+            }
+            catch (SqlException exception) when (
+                exception.Number == SqlErrorDatabaseAlreadyExists && attempt < MaxMigrationAttempts)
+            {
+                // Another replica is creating the database. EF's migration lock lives inside the
+                // database, so it can't guard creation, and EF treats a database it can't open yet
+                // as missing. Wait for creation to finish; after that the lock serialises migrations.
+                await Task.Delay(TimeSpan.FromSeconds(2 * attempt));
+            }
+        }
+    }
+}

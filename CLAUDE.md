@@ -15,6 +15,7 @@ A REST API for customer CRUD on .NET 10, ASP.NET Core controllers and EF Core 10
 | `src/CustomerService.Api/Program.cs` | DI wiring, middleware, health checks, optional migrate-on-start-up |
 | `tests/CustomerService.UnitTests/` | xUnit + Moq; folders mirror the API's |
 | `tests/CustomerService.IntegrationTests/` | HTTP tests through `WebApplicationFactory` against a real database |
+| `deploy/helm/customer-service/` | Helm chart; `values-dev.yaml`, `values-staging.yaml`, `values-prod.yaml` per environment. See the `helm` skill |
 
 Dependencies point one way: Controllers → `ICustomerService` → `ICustomerRepository` → `CustomerDbContext`. See the `presentation-layer`, `business-layer` and `data-layer` skills.
 
@@ -50,6 +51,8 @@ With Podman, export `DOCKER_HOST="unix://$(podman machine inspect --format '{{.C
 - **Normalise input in the service.** Names and phone are trimmed; email is trimmed and lower-cased before the uniqueness check.
 - **DateTimes are UTC.** `CustomerDbContext` marks `CreatedAtUtc`/`UpdatedAtUtc` as `DateTimeKind.Utc` on read. Do the same for any new `DateTime` column, or JSON drops the `Z`.
 - **Logging:** inject `ILogger<T>`, use message templates (`{Method} {Path}`), log only unexpected errors at `Error`.
+- **Health endpoints:** `/health/live` runs no checks (liveness); `/health/ready` runs checks tagged `ready` (readiness). Tag any new dependency check `ready`; never add one to liveness, or an outage restarts every pod.
+- **Start-up failures exit with code 1.** `Program.cs` catches and logs them because, as PID 1 in a container, an unhandled exception hangs the process instead of ending it. Keep new start-up work inside that `try`.
 - **Tests:** name them `Method_Condition_Expected`. Unit tests use `MockBehavior.Strict`. Repository tests run on SQLite in-memory, not the EF in-memory provider.
 
 ## Database changes
@@ -75,7 +78,7 @@ Verify every change with `sh .claude/pre-pr-checks`.
 
 ## CI/CD
 
-There's no CI pipeline and no git remote yet. `.claude/pre-pr-checks` is the only gate: build, unmigrated-model check, unit tests with the 80% coverage gate, and integration tests on SQLite. Run it locally before any PR. Before merging changes to data access, also run the integration tests against SQL Server. Deployment is the Docker image from `Dockerfile`; there's no automated deploy. See the `ci` skill.
+There's no CI pipeline and no git remote yet. `.claude/pre-pr-checks` is the only gate: build, unmigrated-model check, unit tests with the 80% coverage gate, integration tests on SQLite, and `helm lint`/`helm template` for each environment. Run it locally before any PR. Before merging changes to data access, also run the integration tests against SQL Server. Deployment is the Docker image from `Dockerfile`, installed with the Helm chart; there's no automated deploy. See the `ci` and `helm` skills.
 
 ## Superpowers (mandatory)
 

@@ -11,7 +11,9 @@ A REST API for creating, reading, updating and deleting customers. It runs on .N
 | `POST` | `/api/customers` | 201 with `Location` header | 400, 409 |
 | `PUT` | `/api/customers/{id}` | 200 | 400, 404, 409 |
 | `DELETE` | `/api/customers/{id}` | 204 | 404 |
-| `GET` | `/health` | 200 `Healthy` | 503 |
+| `GET` | `/health` | 200 `Healthy` (all checks) | 503 |
+| `GET` | `/health/live` | 200 `Healthy` (process only, for liveness probes) | none |
+| `GET` | `/health/ready` | 200 `Healthy` (includes the database, for readiness probes) | 503 |
 
 Errors use [RFC 7807 problem details](https://www.rfc-editor.org/rfc/rfc7807). Email addresses are trimmed, stored in lower case and must be unique, so a duplicate returns 409. `pageSize` accepts 1 to 100, and `search` matches first name, last name or email. In the `Development` environment the OpenAPI document is served at `/openapi/v1.json`.
 
@@ -38,6 +40,7 @@ src/CustomerService.Api/
   Errors/        exception types and the global exception handler
 tests/CustomerService.UnitTests/         xUnit and Moq, coverage gate at 80% line
 tests/CustomerService.IntegrationTests/  WebApplicationFactory against a real database
+deploy/helm/customer-service/            Helm chart, with values for dev, staging and prod
 ```
 
 ## Run with Docker
@@ -70,6 +73,51 @@ Try it:
 curl -i -X POST http://localhost:8080/api/customers \
   -H "Content-Type: application/json" \
   -d '{"firstName":"Jane","lastName":"Doe","email":"jane@example.com"}'
+```
+
+## Deploy to Kubernetes with Helm
+
+The chart is in `deploy/helm/customer-service`. It creates a Deployment, a `ClusterIP` Service and a ServiceAccount, plus an Ingress when `ingress.enabled` is true. Prod also gets a HorizontalPodAutoscaler and a PodDisruptionBudget.
+
+| | dev | staging | prod |
+|---|---|---|---|
+| Values file | `values-dev.yaml` | `values-staging.yaml` | `values-prod.yaml` |
+| Replicas | 1 | 2 | HPA, 3 to 10 at 70% CPU |
+| CPU request / limit | 50m / 250m | 100m / 500m | 250m / 1000m |
+| Memory request / limit | 128Mi / 256Mi | 192Mi / 384Mi | 256Mi / 512Mi |
+| Ingress | off | on | on |
+
+1. Push the image to your registry:
+
+    ```bash
+    docker build -t <registry>/customer-service-api:<tag> .
+    docker push <registry>/customer-service-api:<tag>
+    ```
+
+2. Create the Secret with the SQL Server connection string. The chart never stores credentials:
+
+    ```bash
+    kubectl create secret generic customer-service-db -n <namespace> \
+      --from-literal=connection-string='Server=<host>,1433;Database=CustomerDb;User Id=<user>;Password=<password>;TrustServerCertificate=False'
+    ```
+
+3. Install or upgrade, choosing the environment's values file:
+
+    ```bash
+    helm upgrade --install customer-service deploy/helm/customer-service -n <namespace> \
+      -f deploy/helm/customer-service/values-<env>.yaml \
+      --set image.repository=<registry>/customer-service-api --set image.tag=<tag>
+    ```
+
+The ingress hosts, TLS Secret names and the `nginx` ingress class in the values files are placeholders; set your own. Turn the ingress on or off in any environment with `--set ingress.enabled=true|false`.
+
+The pods run migrations at start-up (`database.applyMigrationsOnStartup`). Several replicas can start at once: EF Core serialises migrations with a lock, and the app retries while another replica is creating the database. Probes use `/health/live` for startup and liveness, and `/health/ready` for readiness, so a database outage takes pods out of the Service without restarting them. `values.schema.json` rejects a values file without cpu and memory requests and limits, or without a database Secret.
+
+Check a change before deploying:
+
+```bash
+helm lint deploy/helm/customer-service -f deploy/helm/customer-service/values-<env>.yaml
+helm template customer-service deploy/helm/customer-service -f deploy/helm/customer-service/values-<env>.yaml
 ```
 
 ## Run locally

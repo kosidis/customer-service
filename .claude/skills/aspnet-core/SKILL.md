@@ -13,8 +13,10 @@ ASP.NET Core 10 with MVC controllers (not minimal APIs). All wiring is in `src/C
 - `AddProblemDetails()` + `AddExceptionHandler<GlobalExceptionHandler>()` + `UseExceptionHandler()`: every error is RFC 7807 `application/problem+json`.
 - `UseStatusCodePages()`: bare 404s from routing (for example `/api/customers/not-a-guid`) also get a body.
 - `AddOpenApi()` + `MapOpenApi()` in `Development` only: document at `/openapi/v1.json`.
-- `AddHealthChecks().AddDbContextCheck<CustomerDbContext>("database")` + `MapHealthChecks("/health")`: returns `Healthy`/503.
-- `public partial class Program;` at the end exists so `WebApplicationFactory<Program>` can see it. Keep it.
+- `AddHealthChecks().AddDbContextCheck<CustomerDbContext>("database", tags: [ReadinessTag])`, mapped three ways: `/health` (all checks), `/health/live` (`Predicate = _ => false`, for liveness probes) and `/health/ready` (checks tagged `ready`, for readiness probes). Tag new dependency checks `ready`; liveness must never depend on the database. `HealthProbeTests` proves live stays 200 while ready returns 503 with the database down.
+- Everything after `Build()` runs inside a `try` that logs at `Critical` and returns exit code 1. As PID 1 in a container an unhandled exception hangs instead of exiting, so keep start-up work inside it. `HostAbortedException` is let through because `dotnet ef` and `WebApplicationFactory` use it to stop the host. `await using var app` makes disposal flush the console logger, or the critical log is lost.
+- `MigrateDatabaseAsync` (in the `partial class Program`) retries SQL error 1801 with a short backoff, because replicas starting together race to create the database.
+- `public partial class Program` at the end exists so `WebApplicationFactory<Program>` can see it. Keep it.
 
 ## Controller conventions (`Controllers/CustomersController.cs`)
 

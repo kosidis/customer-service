@@ -1,0 +1,20 @@
+customer-service {{ .Chart.AppVersion }} is deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+{{- if .Values.ingress.enabled }}
+
+Reach it through the ingress:
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}/api/customers
+{{- end }}
+{{- else }}
+
+The ingress is disabled. Reach the ClusterIP service with a port-forward:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "customer-service.fullname" . }} 8080:{{ .Values.service.port }}
+  curl http://localhost:8080/health/ready
+{{- end }}
+
+{{- if not .Values.database.createSecret }}
+
+The pods read the connection string from Secret "{{ .Values.database.existingSecret }}" (key "{{ .Values.database.secretKey }}").
+Pods stay in CreateContainerConfigError until it exists.
+{{- end }}
