@@ -1,15 +1,15 @@
 ---
 name: xunit-moq
-description: WHEN writing or changing unit tests in tests/CustomerService.UnitTests (xUnit 2 with Moq and SQLite in-memory).
+description: WHEN writing or changing unit tests in apps/api/tests/CustomerService.UnitTests (xUnit 2 with Moq and SQLite in-memory).
 ---
 
 # xUnit and Moq in this repo
 
-`tests/CustomerService.UnitTests` uses xUnit 2.9.3, Moq 4.21.0 and `Microsoft.EntityFrameworkCore.Sqlite`. `Xunit` is a global using in the csproj. Assertions are plain `Assert.*`; there's no FluentAssertions.
+`apps/api/tests/CustomerService.UnitTests` uses xUnit 2.9.3, Moq 4.21.0 and `Microsoft.EntityFrameworkCore.Sqlite`. `Xunit` is a global using in the csproj. Assertions are plain `Assert.*`; there's no FluentAssertions.
 
 ## Layout
 
-Test folders mirror the API: `Services/CustomerManagerTests.cs`, `Data/CustomerRepositoryTests.cs`, `Controllers/CustomersControllerTests.cs`, `Errors/GlobalExceptionHandlerTests.cs`, `Contracts/PagedResponseTests.cs`. A new class in `src/CustomerService.Api/<Folder>/` gets `tests/CustomerService.UnitTests/<Folder>/<Class>Tests.cs`.
+Test folders mirror the API: `Services/CustomerManagerTests.cs`, `Data/CustomerRepositoryTests.cs`, `Controllers/CustomersControllerTests.cs`, `Errors/GlobalExceptionHandlerTests.cs`, `Contracts/PagedResponseTests.cs`. A new class in `apps/api/src/CustomerService.Api/<Folder>/` gets `apps/api/tests/CustomerService.UnitTests/<Folder>/<Class>Tests.cs`.
 
 ## Conventions
 
@@ -29,7 +29,7 @@ Test folders mirror the API: `Services/CustomerManagerTests.cs`, `Data/CustomerR
 ## Run
 
 ```bash
-dotnet test tests/CustomerService.UnitTests
-dotnet test tests/CustomerService.UnitTests --filter "FullyQualifiedName~CustomerManagerTests"
-dotnet test tests/CustomerService.UnitTests /p:CollectCoverage=true   # with the 80% gate, see the coverlet skill
+dotnet test apps/api/tests/CustomerService.UnitTests
+dotnet test apps/api/tests/CustomerService.UnitTests --filter "FullyQualifiedName~CustomerManagerTests"
+dotnet test apps/api/tests/CustomerService.UnitTests /p:CollectCoverage=true   # with the 80% gate, see the coverlet skill
 ```

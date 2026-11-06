@@ -1,0 +1,17 @@
+customer-service-web {{ .Chart.AppVersion }} is deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+{{- if .Values.ingress.enabled }}
+
+Reach it through the ingress:
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}/
+{{- end }}
+{{- else }}
+
+The ingress is disabled. Reach the ClusterIP service with a port-forward:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "customer-service-web.fullname" . }} 3000:{{ .Values.service.port }}
+  curl http://localhost:3000/api/health
+{{- end }}
+
+The server calls the API at {{ .Values.apiBaseUrl }}.
+Pages that need it fail until that Service answers in namespace "{{ .Release.Namespace }}".

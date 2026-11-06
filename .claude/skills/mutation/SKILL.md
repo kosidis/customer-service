@@ -7,7 +7,7 @@ description: WHEN running mutation tests with Stryker.NET, reading the mutation 
 
 Stryker changes the API's code in small ways (a *mutant*: a flipped condition, a removed call, an emptied string) and runs the unit tests against each one. A mutant is **killed** when a test fails, and **survives** when none does. A survivor means the code can be wrong without any test noticing, even though line coverage says it ran.
 
-Tool: `dotnet-stryker` 5.0.0 in `dotnet-tools.json`. Config: `tests/CustomerService.UnitTests/stryker-config.json`.
+Tool: `dotnet-stryker` 5.0.0 in `dotnet-tools.json`. Config: `apps/api/tests/CustomerService.UnitTests/stryker-config.json`.
 
 ## Run
 
@@ -15,14 +15,14 @@ Always from the unit test project's folder (a full run takes about 35 seconds):
 
 ```bash
 dotnet tool restore
-cd tests/CustomerService.UnitTests
+cd apps/api/tests/CustomerService.UnitTests
 dotnet stryker
 dotnet stryker --open-report        # same, and opens the HTML report live
 ```
 
-**Never run it from the repo root.** Stryker 5 switches to solution mode whenever it finds `CustomerService.slnx` in the working folder, then runs every test project, including the integration tests. Those start SQL Server through Testcontainers for each mutant, so the run hangs or takes many times longer. `test-projects` in the config doesn't prevent this.
+**Never run it from `apps/api`.** Stryker 5 switches to solution mode whenever it finds `CustomerService.slnx` in the working folder (it lives in `apps/api`), then runs every test project, including the integration tests. Those start SQL Server through Testcontainers for each mutant, so the run hangs or takes many times longer. `test-projects` in the config doesn't prevent this.
 
-Reports go to `tests/CustomerService.UnitTests/StrykerOutput/<timestamp>/reports/` (gitignored): `mutation-report.html` to browse, `mutation-report.json` to script against. The run prints killed/survived totals and the final score.
+Reports go to `apps/api/tests/CustomerService.UnitTests/StrykerOutput/<timestamp>/reports/` (gitignored): `mutation-report.html` to browse, `mutation-report.json` to script against. The run prints killed/survived totals and the final score.
 
 ## What the config does
 
@@ -46,7 +46,7 @@ Score = (killed + timeout) / (killed + timeout + survived + no coverage).
 ## Kill a survivor
 
 1. Open the HTML report, find the file, and click the red marker to see the exact change.
-2. Ask what behaviour would differ if that change shipped, and write the assertion that checks it in the matching test class (`tests/CustomerService.UnitTests/<Folder>/<Class>Tests.cs`, see `xunit-moq`).
+2. Ask what behaviour would differ if that change shipped, and write the assertion that checks it in the matching test class (`apps/api/tests/CustomerService.UnitTests/<Folder>/<Class>Tests.cs`, see `xunit-moq`).
 3. Re-run `dotnet stryker` and confirm the mutant is now killed.
 4. If no observable behaviour can differ (an *equivalent mutant*), leave it and say so in the PR. Don't write a test that pins implementation details just to raise the score.
 

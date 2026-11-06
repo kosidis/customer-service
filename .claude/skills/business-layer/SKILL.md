@@ -5,7 +5,7 @@ description: WHEN adding or changing business rules, service methods or the doma
 
 # Business layer
 
-**Directories:** `src/CustomerService.Api/Services/` (`ICustomerService`, `CustomerManager`) and `Domain/` (`Customer`).
+**Directories:** `apps/api/src/CustomerService.Api/Services/` (`ICustomerService`, `CustomerManager`) and `Domain/` (`Customer`).
 **Entrypoint:** `ICustomerService`, injected into `CustomersController`.
 
 ## Belongs here
@@ -31,7 +31,7 @@ description: WHEN adding or changing business rules, service methods or the doma
 ## Add or edit within the layer
 
 1. Add the method to `ICustomerService`, then implement it in `CustomerManager` with a primary-constructor dependency if it needs a new one (register that in `Program.cs`).
-2. Tests in `tests/CustomerService.UnitTests/Services/CustomerManagerTests.cs` with strict `Mock<ICustomerRepository>` and `FixedTimeProvider`: one test per branch, including errors, plus `Verify(..., Times.Never)` that nothing persists on failure.
+2. Tests in `apps/api/tests/CustomerService.UnitTests/Services/CustomerManagerTests.cs` with strict `Mock<ICustomerRepository>` and `FixedTimeProvider`: one test per branch, including errors, plus `Verify(..., Times.Never)` that nothing persists on failure.
 3. Changing a rule: check the integration tests that assert on normalised output (for example `Create_ValidRequest_Returns201WithLocationAndBody`) and whether stored data needs a migration.
 4. Changing the `ICustomerService` signature ripples to `CustomersController` and `CustomersControllerTests`.
 

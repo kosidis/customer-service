@@ -2,13 +2,18 @@
 # Local CI-equivalent gate. shift-workflow's pre-pr-checks hook runs this before
 # `gh pr create` / `gh pr edit` and blocks the PR if it exits non-zero.
 # Integration tests run on SQLite here to stay fast and container-free; run
-# `dotnet test tests/CustomerService.IntegrationTests` against SQL Server by hand
-# before merging data-access changes.
+# `dotnet test apps/api/tests/CustomerService.IntegrationTests` against SQL Server
+# by hand before merging data-access changes.
 
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
 if ! command -v dotnet >/dev/null 2>&1; then
   echo "pre-pr-checks: dotnet SDK not found (need .NET 10)" >&2
+  exit 1
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "pre-pr-checks: npm not found (need Node 24)" >&2
   exit 1
 fi
 
@@ -22,17 +27,32 @@ run() {
   fi
 }
 
-run "restore local tools" dotnet tool restore
-run "build" dotnet build --nologo
-run "no unmigrated model changes" dotnet ef migrations has-pending-model-changes -p src/CustomerService.Api --no-build
-run "unit tests + 80% coverage gate" dotnet test tests/CustomerService.UnitTests --nologo /p:CollectCoverage=true
-run "integration tests (SQLite)" env INTEGRATION_TEST_DB=sqlite dotnet test tests/CustomerService.IntegrationTests --nologo
+# API (apps/api). The tool manifest is at the repo root, so dotnet ef works from here.
+run "api: restore local tools" dotnet tool restore
+run "api: build" dotnet build apps/api --nologo
+run "api: no unmigrated model changes" dotnet ef migrations has-pending-model-changes -p apps/api/src/CustomerService.Api --no-build
+run "api: unit tests + 80% coverage gate" dotnet test apps/api/tests/CustomerService.UnitTests --nologo /p:CollectCoverage=true
+run "api: integration tests (SQLite)" env INTEGRATION_TEST_DB=sqlite dotnet test apps/api/tests/CustomerService.IntegrationTests --nologo
 
-chart=deploy/helm/customer-service
+# Web (apps/web). npm ci only when node_modules is missing, to keep repeat runs fast.
+if [ ! -d apps/web/node_modules ]; then
+  run "web: install dependencies" npm --prefix apps/web ci
+fi
+run "web: lint" npm --prefix apps/web run lint
+run "web: typecheck" npm --prefix apps/web run typecheck
+run "web: unit tests + 80% coverage gate" npm --prefix apps/web run test:coverage
+run "web: build" npm --prefix apps/web run build
+
+# Helm: every chart under apps/*/helm, for each environment's values file.
 if command -v helm >/dev/null 2>&1; then
-  for env in dev staging prod; do
-    run "helm lint ($env)" helm lint "$chart" -f "$chart/values-$env.yaml" --quiet
-    run "helm template ($env)" sh -c "helm template customer-service '$chart' -f '$chart/values-$env.yaml' >/dev/null"
+  for chart in apps/*/helm/*/; do
+    chart="${chart%/}"
+    # Not "name": run() assigns that, and sh has no local variables.
+    chart_name="$(basename "$chart")"
+    for env in dev staging prod; do
+      run "helm lint $chart_name ($env)" helm lint "$chart" -f "$chart/values-$env.yaml" --quiet
+      run "helm template $chart_name ($env)" sh -c "helm template '$chart_name' '$chart' -f '$chart/values-$env.yaml' >/dev/null"
+    done
   done
 else
   echo "==> helm not installed: skipping chart checks (brew install helm)" >&2

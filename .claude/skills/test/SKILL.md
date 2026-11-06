@@ -7,13 +7,16 @@ description: WHEN running the test suites, checking coverage, or deciding which 
 
 | Suite | Command | Needs |
 |---|---|---|
-| Unit + coverage gate | `dotnet test tests/CustomerService.UnitTests /p:CollectCoverage=true` | nothing |
-| Integration, SQL Server | `dotnet test tests/CustomerService.IntegrationTests` | Docker or Podman (`DOCKER_HOST` for Podman) |
-| Integration, SQLite | `INTEGRATION_TEST_DB=sqlite dotnet test tests/CustomerService.IntegrationTests` | nothing |
+| Unit + coverage gate | `dotnet test apps/api/tests/CustomerService.UnitTests /p:CollectCoverage=true` | nothing |
+| Integration, SQL Server | `dotnet test apps/api/tests/CustomerService.IntegrationTests` | Docker or Podman (`DOCKER_HOST` for Podman) |
+| Integration, SQLite | `INTEGRATION_TEST_DB=sqlite dotnet test apps/api/tests/CustomerService.IntegrationTests` | nothing |
+| Web unit tests (Jest + RTL) | `cd apps/web && npm test` | `npm ci` once |
+| Web tests + 80% coverage gate | `cd apps/web && npm run test:coverage` | `npm ci` once |
+| Web lint, types and build | `cd apps/web && npm run lint && npm run typecheck && npm run build` | `npm ci` once |
 | Everything the PR gate runs | `sh .claude/pre-pr-checks` | nothing |
-| Mutation tests (unit suite) | `cd tests/CustomerService.UnitTests && dotnet stryker` | nothing; never from the repo root (see the `mutation` skill) |
+| Mutation tests (unit suite) | `cd apps/api/tests/CustomerService.UnitTests && dotnet stryker` | nothing; never from `apps/api` (see the `mutation` skill) |
 
-Filter: `--filter "FullyQualifiedName~<ClassOrMethod>"`.
+Filter: `--filter "FullyQualifiedName~<ClassOrMethod>"` for .NET; `npm test -- -t "<name>"` or `npm test -- src/__tests__/<file>` for the web app.
 
 ## What a change needs
 
@@ -22,6 +25,10 @@ Filter: `--filter "FullyQualifiedName~<ClassOrMethod>"`.
 - **Endpoint or contract:** a controller test in `Controllers/CustomersControllerTests.cs` and integration tests in `CustomersApiTests.cs` for the success status and every error status the endpoint documents. Only the integration tests exercise model binding and validation.
 - **New error type:** a row in `GlobalExceptionHandlerTests.KnownExceptions`.
 
+- **Web API call:** a case in `apps/web/src/__tests__/api.test.ts` with `fetch` mocked.
+- **Server action:** a case in `actions.test.ts` for success (redirect and revalidate) and each error mapping.
+- **Component or page:** a case in `components.test.tsx` or `pages.test.tsx`.
+
 Write the test first (superpowers `test-driven-development`), watch it fail, then implement.
 
-Details: `xunit-moq` (unit), `testcontainers` (integration), `coverlet` (gate).
+Details: `xunit-moq` (unit), `testcontainers` (integration), `coverlet` (gate), `jest-rtl` (web).

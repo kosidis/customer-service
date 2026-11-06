@@ -5,6 +5,8 @@ namespace CustomerService.Api.Data;
 
 public class CustomerRepository(CustomerDbContext dbContext) : ICustomerRepository
 {
+    private const int MaxSearchWords = 5;
+
     public Task<Customer?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.Customers.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
@@ -15,11 +17,15 @@ public class CustomerRepository(CustomerDbContext dbContext) : ICustomerReposito
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var term = search.Trim();
-            query = query.Where(c =>
-                c.FirstName.Contains(term) ||
-                c.LastName.Contains(term) ||
-                c.Email.Contains(term));
+            // Every word must match some column, so "Ada Lovelace" finds a first and last name pair.
+            var words = search.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Take(MaxSearchWords);
+            foreach (var word in words)
+            {
+                query = query.Where(c =>
+                    c.FirstName.Contains(word) ||
+                    c.LastName.Contains(word) ||
+                    c.Email.Contains(word));
+            }
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

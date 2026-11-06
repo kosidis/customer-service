@@ -1,10 +1,5 @@
-# Staging: two replicas behind an ingress, production-like settings.
+# Staging: two replicas, production-like settings.
 replicaCount: 2
-
-aspnetcoreEnvironment: Staging
-
-database:
-  existingSecret: customer-service-db
 
 resources:
   requests:
@@ -14,9 +9,10 @@ resources:
     cpu: 500m
     memory: 384Mi
 
+# Public entry point. The API itself isn't exposed.
 ingress:
   enabled: true
-  # Placeholders: set your ingress class, host and TLS secret.
+  # Placeholder: set to your cluster's ingress class.
   className: nginx
   hosts:
     - host: customer-service.staging.example.com

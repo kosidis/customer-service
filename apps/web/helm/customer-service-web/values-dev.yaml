@@ -1,0 +1,13 @@
+# Development: one small replica, no ingress (use kubectl port-forward).
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+ingress:
+  enabled: false

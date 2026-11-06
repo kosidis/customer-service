@@ -1,6 +1,6 @@
 ---
 name: testcontainers
-description: WHEN running, writing or debugging integration tests in tests/CustomerService.IntegrationTests, which host the API with WebApplicationFactory against SQL Server in a container or SQLite.
+description: WHEN running, writing or debugging integration tests in apps/api/tests/CustomerService.IntegrationTests, which host the API with WebApplicationFactory against SQL Server in a container or SQLite.
 ---
 
 # Integration tests: WebApplicationFactory + Testcontainers
@@ -9,7 +9,7 @@ Packages: `Microsoft.AspNetCore.Mvc.Testing` 10.0.14, `Testcontainers.MsSql` 4.1
 
 ## How the host is built
 
-`tests/CustomerService.IntegrationTests/Infrastructure/CustomerApiFactory.cs`:
+`apps/api/tests/CustomerService.IntegrationTests/Infrastructure/CustomerApiFactory.cs`:
 
 - `WebApplicationFactory<Program>` + `IAsyncLifetime`, shared by every test class through `[Collection(ApiCollection.Name)]`, so one database container serves the whole run.
 - **Default mode:** starts `mcr.microsoft.com/mssql/server:2022-latest` with `new MsSqlBuilder(SqlServerImage).Build()`, sets `ConnectionStrings:CustomerDb` with `UseSetting`, then runs `MigrateAsync()`. This is the real thing; prefer it before merging data-access changes.
@@ -20,8 +20,8 @@ Packages: `Microsoft.AspNetCore.Mvc.Testing` 10.0.14, `Testcontainers.MsSql` 4.1
 ## Run
 
 ```bash
-dotnet test tests/CustomerService.IntegrationTests                         # SQL Server, needs Docker or Podman
-INTEGRATION_TEST_DB=sqlite dotnet test tests/CustomerService.IntegrationTests
+dotnet test apps/api/tests/CustomerService.IntegrationTests                         # SQL Server, needs Docker or Podman
+INTEGRATION_TEST_DB=sqlite dotnet test apps/api/tests/CustomerService.IntegrationTests
 ```
 
 With Podman, point Testcontainers at its socket first:
