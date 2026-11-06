@@ -22,7 +22,7 @@ export function Pagination({ page, totalPages, search }: Props) {
   const linkClass = "rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-100";
   const disabledClass = "rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-400";
   return (
-    <nav aria-label="Pagination" className="mt-4 flex items-center justify-between">
+    <nav aria-label="Customer list pagination" className="mt-4 flex items-center justify-between">
       {page > 1 ? (
         <Link href={pageHref(page - 1, search)} rel="prev" className={linkClass}>
           Previous
@@ -30,7 +30,7 @@ export function Pagination({ page, totalPages, search }: Props) {
       ) : (
         <span aria-disabled="true" className={disabledClass}>Previous</span>
       )}
-      <span className="text-sm text-slate-600" aria-current="page">
+      <span className="text-sm text-slate-600">
         Page {page} of {totalPages}
       </span>
       {page < totalPages ? (

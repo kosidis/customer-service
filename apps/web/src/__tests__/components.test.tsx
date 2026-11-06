@@ -126,8 +126,16 @@ describe("DeleteCustomerButton", () => {
     deleteMock.mockResolvedValue(undefined);
     render(<DeleteCustomerButton id="abc" name="Ada" />);
     await userEvent.click(screen.getByRole("button", { name: "Delete Ada" }));
-    await waitFor(() => expect(deleteMock).toHaveBeenCalledWith("abc"));
+    await waitFor(() => expect(deleteMock).toHaveBeenCalledWith("abc", undefined));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("passes the return path to the action", async () => {
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    deleteMock.mockResolvedValue(undefined);
+    render(<DeleteCustomerButton id="abc" name="Ada" returnTo="/customers?page=2" />);
+    await userEvent.click(screen.getByRole("button", { name: "Delete Ada" }));
+    await waitFor(() => expect(deleteMock).toHaveBeenCalledWith("abc", "/customers?page=2"));
   });
 
   it("shows an error when the action fails", async () => {
@@ -150,6 +158,8 @@ describe("Pagination", () => {
     expect(screen.getByRole("link", { name: "Previous" })).toHaveAttribute("href", "/customers?search=ada+%26+co&page=1");
     expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute("href", "/customers?search=ada+%26+co&page=3");
     expect(screen.getByText("Page 2 of 3")).toBeInTheDocument();
+    expect(screen.getByText("Page 2 of 3")).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("navigation", { name: "Customer list pagination" })).toBeInTheDocument();
   });
 
   it("disables previous on the first page and next on the last", () => {

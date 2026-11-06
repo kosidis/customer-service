@@ -13,9 +13,8 @@ const config: Config = {
   },
   collectCoverageFrom: [
     "src/**/*.{ts,tsx}",
-    // Pure boilerplate: root layout/metadata, static skeleton, redirect-only root page.
+    // Pure boilerplate: root layout/metadata and the static loading skeleton.
     "!src/app/layout.tsx",
-    
     "!src/app/customers/loading.tsx",
     "!src/**/*.test.{ts,tsx}",
     "!src/__tests__/**",

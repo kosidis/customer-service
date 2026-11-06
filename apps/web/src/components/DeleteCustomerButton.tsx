@@ -3,7 +3,15 @@
 import { useState, useTransition } from "react";
 import { deleteCustomerAction } from "@/app/customers/actions";
 
-export function DeleteCustomerButton({ id, name }: { id: string; name: string }) {
+export function DeleteCustomerButton({
+  id,
+  name,
+  returnTo,
+}: {
+  id: string;
+  name: string;
+  returnTo?: string;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -13,7 +21,7 @@ export function DeleteCustomerButton({ id, name }: { id: string; name: string })
     }
     setError(null);
     startTransition(async () => {
-      const result = await deleteCustomerAction(id);
+      const result = await deleteCustomerAction(id, returnTo);
       if (result?.error) {
         setError(result.error);
       }

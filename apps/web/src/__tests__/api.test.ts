@@ -73,6 +73,25 @@ describe("apiFetch", () => {
     expect(error.fieldErrors).toEqual({ firstName: ["required"], email: ["bad", "worse"] });
   });
 
+  it("maps field-error keys case-insensitively and from JSON paths", async () => {
+    respond(400, {
+      errors: {
+        "$.phoneNumber": ["too long"],
+        PHONENUMBER: ["bad"],
+        "$.customer.EMAIL": ["bad email"],
+        lastname: ["req"],
+        "$.Unknown": ["x"],
+      },
+    });
+    const error = await caught(apiFetch("/x"));
+    expect(error.fieldErrors).toEqual({
+      phoneNumber: ["too long", "bad"],
+      email: ["bad email"],
+      lastName: ["req"],
+      "$.Unknown": ["x"],
+    });
+  });
+
   it.each([
     [404, "Not Found", "Customer missing"],
     [409, "Conflict", "A customer with email 'x' already exists."],

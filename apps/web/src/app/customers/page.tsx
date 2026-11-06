@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { CustomerTable } from "@/components/CustomerTable";
-import { Pagination } from "@/components/Pagination";
+import { Pagination, pageHref } from "@/components/Pagination";
 import { SearchBox } from "@/components/SearchBox";
 import { listCustomers } from "@/lib/api/customers";
 
@@ -20,6 +21,11 @@ export default async function CustomersPage({ searchParams }: { searchParams: Se
 
   const result = await listCustomers({ page, search });
 
+  // e.g. the last row of the last page was just deleted.
+  if (result.totalPages > 0 && page > result.totalPages) {
+    redirect(pageHref(result.totalPages, search));
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -29,7 +35,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Se
         </Link>
       </div>
       <SearchBox defaultValue={search} />
-      <CustomerTable customers={result.items} />
+      <CustomerTable customers={result.items} returnTo={pageHref(result.page, search)} />
       <Pagination page={result.page} totalPages={result.totalPages} search={search} />
     </div>
   );

@@ -22,8 +22,24 @@ export class ApiError extends Error {
   }
 }
 
+const KNOWN_FIELDS = ["firstName", "lastName", "email", "phoneNumber"] as const;
+
 function lowerCamel(key: string): string {
   return key.charAt(0).toLowerCase() + key.slice(1);
+}
+
+// Maps "FirstName", "firstname" and JSON-path style keys such as "$.phoneNumber"
+// or "$.customer.email" onto the known form fields. Unknown keys are kept
+// (lower-camel) so callers can surface them as a form-level error.
+function normaliseKey(key: string): string {
+  const segments = key.split(/[.[\]]/).filter((s) => s !== "" && s !== "$");
+  const last = segments[segments.length - 1] ?? key;
+  const known = KNOWN_FIELDS.find((f) => f.toLowerCase() === last.toLowerCase());
+  return known ?? lowerCamel(key);
+}
+
+export function isKnownField(key: string): boolean {
+  return (KNOWN_FIELDS as readonly string[]).includes(key);
 }
 
 function toFieldErrors(errors: unknown): Record<string, string[]> {
@@ -31,7 +47,8 @@ function toFieldErrors(errors: unknown): Record<string, string[]> {
   if (errors && typeof errors === "object") {
     for (const [key, value] of Object.entries(errors)) {
       if (Array.isArray(value)) {
-        result[lowerCamel(key)] = value.map(String);
+        const name = normaliseKey(key);
+        result[name] = [...(result[name] ?? []), ...value.map(String)];
       }
     }
   }

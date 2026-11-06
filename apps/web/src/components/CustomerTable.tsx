@@ -12,7 +12,13 @@ export function formatUpdated(iso: string): string {
   return `${dateFormat.format(new Date(iso))} UTC`;
 }
 
-export function CustomerTable({ customers }: { customers: Customer[] }) {
+export function CustomerTable({
+  customers,
+  returnTo,
+}: {
+  customers: Customer[];
+  returnTo?: string;
+}) {
   if (customers.length === 0) {
     return (
       <p className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-slate-600">
@@ -49,7 +55,11 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
                   >
                     Edit
                   </Link>
-                  <DeleteCustomerButton id={c.id} name={`${c.firstName} ${c.lastName}`} />
+                  <DeleteCustomerButton
+                    id={c.id}
+                    name={`${c.firstName} ${c.lastName}`}
+                    returnTo={returnTo}
+                  />
                 </div>
               </td>
             </tr>

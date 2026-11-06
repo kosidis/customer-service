@@ -7,7 +7,7 @@ import {
   deleteCustomer,
   updateCustomer,
 } from "@/lib/api/customers";
-import { ApiError } from "@/lib/api/http";
+import { ApiError, isKnownField } from "@/lib/api/http";
 import type { CreateCustomerRequest } from "@/lib/api/types";
 import type { CustomerFormState, CustomerFormValues } from "@/lib/form-state";
 
@@ -35,10 +35,31 @@ function toRequest(values: CustomerFormValues): CreateCustomerRequest {
   };
 }
 
-function toFormState(error: unknown, values: CustomerFormValues): CustomerFormState {
+const GENERIC_SAVE_ERROR = "Something went wrong saving the customer. Try again.";
+
+function toFormState(
+  error: unknown,
+  values: CustomerFormValues,
+  { notFoundMessage }: { notFoundMessage?: string } = {},
+): CustomerFormState {
   if (error instanceof ApiError) {
-    if (error.status === 400 && Object.keys(error.fieldErrors).length > 0) {
-      return { fieldErrors: error.fieldErrors, formError: null, values };
+    if (error.status === 400) {
+      const fieldErrors: Record<string, string[]> = {};
+      const other: string[] = [];
+      for (const [key, messages] of Object.entries(error.fieldErrors)) {
+        if (isKnownField(key)) {
+          fieldErrors[key] = messages;
+        } else {
+          other.push(...messages);
+        }
+      }
+      const formError =
+        other.length > 0
+          ? other.join(" ")
+          : Object.keys(fieldErrors).length > 0
+            ? null
+            : (error.detail ?? error.title ?? "The customer details are not valid.");
+      return { fieldErrors, formError, values };
     }
     if (error.status === 409) {
       return {
@@ -47,15 +68,14 @@ function toFormState(error: unknown, values: CustomerFormValues): CustomerFormSt
         values,
       };
     }
-    return {
-      fieldErrors: {},
-      formError: error.detail ?? error.title ?? "Something went wrong.",
-      values,
-    };
+    if (error.status === 404 && notFoundMessage) {
+      return { fieldErrors: {}, formError: notFoundMessage, values };
+    }
+    return { fieldErrors: {}, formError: GENERIC_SAVE_ERROR, values };
   }
   return {
     fieldErrors: {},
-    formError: "Could not reach the customer service. Please try again.",
+    formError: GENERIC_SAVE_ERROR,
     values,
   };
 }
@@ -83,14 +103,22 @@ export async function updateCustomerAction(
   try {
     await updateCustomer(id, toRequest(values));
   } catch (error) {
-    return toFormState(error, values);
+    return toFormState(error, values, {
+      notFoundMessage: "This customer no longer exists.",
+    });
   }
   revalidatePath("/customers");
   redirect("/customers");
 }
 
+// Only same-app list paths are allowed, so the return path cannot be an open redirect.
+function safeReturnPath(returnTo: string | undefined): string {
+  return returnTo && /^\/customers(?:[?/]|$)/.test(returnTo) ? returnTo : "/customers";
+}
+
 export async function deleteCustomerAction(
   id: string,
+  returnTo?: string,
 ): Promise<{ error: string } | undefined> {
   try {
     await deleteCustomer(id);
@@ -101,5 +129,5 @@ export async function deleteCustomerAction(
     }
   }
   revalidatePath("/customers");
-  redirect("/customers");
+  redirect(safeReturnPath(returnTo));
 }

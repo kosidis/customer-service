@@ -73,11 +73,24 @@ describe("createCustomerAction", () => {
     expect(state.values.email).toBe("ADA@x.io");
   });
 
-  it("uses detail for other API errors", async () => {
+  it("shows a generic message for 5xx and hides the API detail", async () => {
     (createCustomer as jest.Mock).mockRejectedValue(new ApiError(500, "Server error", "Boom"));
     const state = await createCustomerAction(initialFormState, form(filled));
-    expect(state.formError).toBe("Boom");
+    expect(state.formError).toBe("Something went wrong saving the customer. Try again.");
     expect(state.fieldErrors).toEqual({});
+  });
+
+  it("surfaces 400 keys that match no known field as the form error", async () => {
+    (createCustomer as jest.Mock).mockRejectedValue(
+      new ApiError(400, "Validation", undefined, {
+        email: ["Invalid email"],
+        request: ["Body is required."],
+        "": ["Bad model."],
+      }),
+    );
+    const state = await createCustomerAction(initialFormState, form(filled));
+    expect(state.fieldErrors).toEqual({ email: ["Invalid email"] });
+    expect(state.formError).toBe("Body is required. Bad model.");
   });
 
   it("uses title for a 400 without field errors and no detail", async () => {
@@ -89,7 +102,7 @@ describe("createCustomerAction", () => {
   it("returns a friendly error for network failures", async () => {
     (createCustomer as jest.Mock).mockRejectedValue(new TypeError("fetch failed"));
     const state = await createCustomerAction(initialFormState, form(filled));
-    expect(state.formError).toMatch(/Could not reach the customer service/);
+    expect(state.formError).toBe("Something went wrong saving the customer. Try again.");
     expect(state.values).toEqual(filled);
   });
 
@@ -114,6 +127,12 @@ describe("updateCustomerAction", () => {
     const state = await updateCustomerAction("abc", initialFormState, form(filled));
     expect(state.fieldErrors.email).toBeDefined();
   });
+
+  it("says the customer no longer exists on 404", async () => {
+    (updateCustomer as jest.Mock).mockRejectedValue(new ApiError(404, "Not Found", "internal detail"));
+    const state = await updateCustomerAction("abc", initialFormState, form(filled));
+    expect(state.formError).toBe("This customer no longer exists.");
+  });
 });
 
 describe("deleteCustomerAction", () => {
@@ -123,6 +142,21 @@ describe("deleteCustomerAction", () => {
     expect(deleteCustomer).toHaveBeenCalledWith("abc");
     expect(revalidatePath).toHaveBeenCalledWith("/customers");
   });
+
+  it("redirects back to the given customers list view", async () => {
+    (deleteCustomer as jest.Mock).mockResolvedValue(undefined);
+    await expect(deleteCustomerAction("abc", "/customers?search=ada&page=2")).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledWith("/customers?search=ada&page=2");
+  });
+
+  it.each(["https://evil.example", "//evil.example", "/other", "/customersx", "javascript:alert(1)"])(
+    "ignores unsafe return path %s",
+    async (returnTo) => {
+      (deleteCustomer as jest.Mock).mockResolvedValue(undefined);
+      await expect(deleteCustomerAction("abc", returnTo)).rejects.toThrow("NEXT_REDIRECT");
+      expect(redirect).toHaveBeenCalledWith("/customers");
+    },
+  );
 
   it("treats 404 as success", async () => {
     (deleteCustomer as jest.Mock).mockRejectedValue(new ApiError(404, "Not Found"));

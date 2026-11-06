@@ -1,4 +1,6 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { deleteCustomerAction } from "@/app/customers/actions";
 import { notFound, redirect } from "next/navigation";
 import Home from "@/app/page";
 import CustomersPage from "@/app/customers/page";
@@ -41,6 +43,25 @@ describe("pages", () => {
     expect(screen.getByRole("link", { name: "Add customer" })).toHaveAttribute("href", "/customers/new");
     expect(screen.getByRole("searchbox")).toHaveValue("ada");
     expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute("href", "/customers?search=ada&page=3");
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("redirects to the last page when the requested page is past the end", async () => {
+    list.mockResolvedValue({ items: [], page: 5, pageSize: 20, totalCount: 30, totalPages: 2 });
+    await CustomersPage({ searchParams: Promise.resolve({ search: "ada", page: "5" }) });
+    expect(redirect).toHaveBeenCalledWith("/customers?search=ada&page=2");
+  });
+
+  it("passes the current list view to delete buttons", async () => {
+    list.mockResolvedValue({ items: [makeCustomer()], page: 2, pageSize: 20, totalCount: 30, totalPages: 3 });
+    render(await CustomersPage({ searchParams: Promise.resolve({ search: "ada", page: "2" }) }));
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    await userEvent.click(screen.getByRole("button", { name: /Delete/ }));
+    expect(deleteCustomerAction).toHaveBeenCalledWith(
+      expect.any(String),
+      "/customers?search=ada&page=2",
+    );
+    jest.restoreAllMocks();
   });
 
   it("falls back to page 1 for bad or array params", async () => {
