@@ -1,0 +1,130 @@
+# Shared defaults. Environment files (values-dev.yaml, values-staging.yaml,
+# values-prod.yaml) override only what differs. Install with both:
+#   helm upgrade --install customer-service-web apps/web/helm/customer-service-web \
+#     -f apps/web/helm/customer-service-web/values-<env>.yaml -n <namespace>
+
+replicaCount: 1
+
+image:
+  # Set to your registry, for example <registry>/customer-service-web.
+  repository: customer-service-web
+  # Defaults to the chart's appVersion when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  # Defaults to the release fullname when empty.
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+# Base URL of the backend API (API_BASE_URL), read by the server at runtime.
+# The default is the API chart's ClusterIP Service in the same namespace
+# (service port 80). Must be an http or https URL.
+apiBaseUrl: http://customer-service
+
+# Extra container env vars, as Kubernetes EnvVar objects.
+extraEnv: []
+
+containerPort: 3000
+
+service:
+  port: 80
+
+ingress:
+  enabled: false
+  # Placeholder: set to your cluster's ingress class.
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: customer-service.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: customer-service-tls
+  #    hosts:
+  #      - customer-service.local
+
+# Requests and limits for cpu and memory are required (enforced by values.schema.json).
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+probes:
+  # Gives Node time to start before liveness applies:
+  # periodSeconds x failureThreshold = 60s.
+  startup:
+    path: /api/health
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 12
+  # The endpoint never calls the API, so a backend outage must not restart pods.
+  liveness:
+    path: /api/health
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+  readiness:
+    path: /api/health
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+podSecurityContext:
+  runAsNonRoot: true
+  # The UID/GID created in apps/web/Dockerfile.
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+terminationGracePeriodSeconds: 30
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# Spreads pods across the listed topology keys using the chart's selector labels.
+topologySpread:
+  enabled: false
+  maxSkew: 1
+  whenUnsatisfiable: ScheduleAnyway
+  topologyKeys:
+    - topology.kubernetes.io/zone
+    - kubernetes.io/hostname
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
