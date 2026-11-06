@@ -1,0 +1,145 @@
+# Shared defaults. Environment files (values-dev.yaml, values-staging.yaml,
+# values-prod.yaml) override only what differs. Install with both:
+#   helm upgrade --install customer-service deploy/helm/customer-service \
+#     -f deploy/helm/customer-service/values-<env>.yaml -n <namespace>
+
+replicaCount: 1
+
+image:
+  # Set to your registry, for example <registry>/customer-service-api.
+  repository: customer-service-api
+  # Defaults to the chart's appVersion when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  # Defaults to the release fullname when empty.
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+# ASPNETCORE_ENVIRONMENT. "Development" also serves /openapi/v1.json.
+aspnetcoreEnvironment: Production
+
+# Extra container env vars, as Kubernetes EnvVar objects.
+extraEnv: []
+
+database:
+  # Name of a Secret holding the SQL Server connection string. Required unless
+  # createSecret is true. Create it out of band, for example:
+  #   kubectl create secret generic customer-service-db \
+  #     --from-literal=connection-string='Server=...;Database=CustomerDb;User Id=...;Password=...'
+  existingSecret: ""
+  # Key inside the Secret.
+  secretKey: connection-string
+  # Let the chart create the Secret from connectionString. For throwaway
+  # clusters only: it puts the credential in values.
+  createSecret: false
+  connectionString: ""
+  # Run EF Core migrations when a pod starts. Safe with several replicas:
+  # EF Core takes an exclusive lock while migrating.
+  applyMigrationsOnStartup: true
+
+containerPort: 8080
+
+service:
+  port: 80
+
+ingress:
+  enabled: false
+  # Placeholder: set to your cluster's ingress class.
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: customer-service.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: customer-service-tls
+  #    hosts:
+  #      - customer-service.local
+
+# Requests and limits for cpu and memory are required (enforced by values.schema.json).
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+probes:
+  # Gives the app time to start and run migrations before liveness applies:
+  # periodSeconds x failureThreshold = 150s.
+  startup:
+    path: /health/live
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 30
+  # Process only, never the database: a DB outage must not restart pods.
+  liveness:
+    path: /health/live
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+  # Includes the database check: takes the pod out of the Service when it can't serve.
+  readiness:
+    path: /health/ready
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+podSecurityContext:
+  runAsNonRoot: true
+  # The .NET runtime image's built-in "app" user.
+  runAsUser: 1654
+  runAsGroup: 1654
+  fsGroup: 1654
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+terminationGracePeriodSeconds: 30
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# Spreads pods across the listed topology keys using the chart's selector labels.
+topologySpread:
+  enabled: false
+  maxSkew: 1
+  whenUnsatisfiable: ScheduleAnyway
+  topologyKeys:
+    - topology.kubernetes.io/zone
+    - kubernetes.io/hostname
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

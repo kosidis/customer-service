@@ -1,0 +1,17 @@
+{
+  "stryker-config": {
+    "project": "CustomerService.Api.csproj",
+    "mutate": [
+      "**/*.cs",
+      "!**/Program.cs",
+      "!**/Data/Migrations/*.cs"
+    ],
+    "coverage-analysis": "perTest",
+    "reporters": ["progress", "cleartext", "html", "json"],
+    "thresholds": {
+      "high": 80,
+      "low": 60,
+      "break": 0
+    }
+  }
+}

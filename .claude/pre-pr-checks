@@ -1,0 +1,46 @@
+#!/bin/sh
+# Local CI-equivalent gate. shift-workflow's pre-pr-checks hook runs this before
+# `gh pr create` / `gh pr edit` and blocks the PR if it exits non-zero.
+# Integration tests run on SQLite here to stay fast and container-free; run
+# `dotnet test tests/CustomerService.IntegrationTests` against SQL Server by hand
+# before merging data-access changes.
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+if ! command -v dotnet >/dev/null 2>&1; then
+  echo "pre-pr-checks: dotnet SDK not found (need .NET 10)" >&2
+  exit 1
+fi
+
+failed=""
+
+run() {
+  name="$1"; shift
+  echo "==> $name"
+  if ! "$@"; then
+    failed="$failed\n  - $name"
+  fi
+}
+
+run "restore local tools" dotnet tool restore
+run "build" dotnet build --nologo
+run "no unmigrated model changes" dotnet ef migrations has-pending-model-changes -p src/CustomerService.Api --no-build
+run "unit tests + 80% coverage gate" dotnet test tests/CustomerService.UnitTests --nologo /p:CollectCoverage=true
+run "integration tests (SQLite)" env INTEGRATION_TEST_DB=sqlite dotnet test tests/CustomerService.IntegrationTests --nologo
+
+chart=deploy/helm/customer-service
+if command -v helm >/dev/null 2>&1; then
+  for env in dev staging prod; do
+    run "helm lint ($env)" helm lint "$chart" -f "$chart/values-$env.yaml" --quiet
+    run "helm template ($env)" sh -c "helm template customer-service '$chart' -f '$chart/values-$env.yaml' >/dev/null"
+  done
+else
+  echo "==> helm not installed: skipping chart checks (brew install helm)" >&2
+fi
+
+if [ -n "$failed" ]; then
+  printf "pre-pr-checks FAILED:%b\n" "$failed" >&2
+  exit 1
+fi
+
+echo "pre-pr-checks passed"

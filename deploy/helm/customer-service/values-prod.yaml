@@ -1,0 +1,41 @@
+# Production: autoscaled from 3 replicas, spread across zones and nodes,
+# protected by a PodDisruptionBudget.
+aspnetcoreEnvironment: Production
+
+database:
+  existingSecret: customer-service-db
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+topologySpread:
+  enabled: true
+
+ingress:
+  enabled: true
+  # Placeholders: set your ingress class, host and TLS secret.
+  className: nginx
+  hosts:
+    - host: customer-service.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: customer-service-tls
+      hosts:
+        - customer-service.example.com

@@ -1,0 +1,15 @@
+bin/
+obj/
+TestResults/
+coverage-report/
+StrykerOutput/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+.env
+.DS_Store
+.tokensave/
+.claude/worktrees/
+.claude/evals/results/

@@ -1,0 +1,51 @@
+schema_version: "1.0"
+name: 09-rename-column
+description: >
+  Renaming a mapped column. EF can generate drop + add, which loses data; the
+  migration must rename instead.
+tags: [skill-routing, migration]
+plugins: [../../skills]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: |
+    Rename the customer's PhoneNumber to Phone, in the code and in the database
+    column, without losing any existing data. When you're done, show me the new
+    migration's Up and Down methods.
+
+    This environment can't run `dotnet test` (it blocks the local socket the test
+    runner needs), so don't try. Check your work with `dotnet build` instead.
+  max_turns: 80
+  timeout_seconds: 1500
+  allowed_tools: [Bash, Read, Edit, Write, Glob, Grep, Skill]
+runs: 3
+graders:
+  - name: migration-created
+    type: regex
+    target: files
+    pattern: 'Data/Migrations/\d+_\w+\.cs'
+  - name: no-drop-of-phone-column
+    type: regex
+    target: trace
+    pattern: 'DropColumn\(\s*name:\s*"PhoneNumber"'
+    match: not_contains
+  - name: rename-up-and-down
+    type: llm
+    focus: trace
+    criteria: |
+      PASS only if both are true, judged from the migration file's contents as they
+      appear in the transcript (read, written, edited or printed):
+      1. The new migration's Up method renames the PhoneNumber column to Phone with
+         RenameColumn (not DropColumn plus AddColumn).
+      2. Its Down method renames Phone back to PhoneNumber.
+  - name: builds
+    type: llm
+    focus: trace
+    criteria: |
+      PASS only if, after its last code change, the agent ran `dotnet build` (or a
+      command that builds the solution) and it succeeded with 0 errors.
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: migration
+    arm: with-only
