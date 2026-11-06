@@ -1,0 +1,25 @@
+# Staging: two replicas, production-like settings.
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 192Mi
+  limits:
+    cpu: 500m
+    memory: 384Mi
+
+# Public entry point. The API itself isn't exposed.
+ingress:
+  enabled: true
+  # Placeholder: set to your cluster's ingress class.
+  className: nginx
+  hosts:
+    - host: customer-service.staging.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: customer-service-staging-tls
+      hosts:
+        - customer-service.staging.example.com
