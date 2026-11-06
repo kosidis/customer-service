@@ -1,0 +1,44 @@
+schema_version: "1.0"
+name: 03-readiness-health-check
+description: >
+  Adding a dependency health check. It must join readiness, never liveness: a
+  failing liveness probe makes Kubernetes restart every pod.
+tags: [regression, aspnet-core]
+plugins: [../../skills]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: |
+    Add a health check that reports unhealthy when free disk space on the drive the
+    app runs from is below 100 MB. Add tests for it.
+
+    This environment can't run `dotnet test` (it blocks the local socket the test
+    runner needs), so don't try. Check your work with `dotnet build` instead.
+  max_turns: 80
+  timeout_seconds: 1500
+  allowed_tools: [Bash, Read, Edit, Write, Glob, Grep, Skill]
+runs: 3
+graders:
+  - name: liveness-still-runs-no-checks
+    type: regex
+    target: { source: file, path: src/CustomerService.Api/Program.cs }
+    pattern: '"/health/live",\s*new HealthCheckOptions\s*\{\s*Predicate\s*=\s*_\s*=>\s*false\s*\}'
+  - name: disk-check-tagged-ready
+    type: llm
+    focus: { source: file, path: src/CustomerService.Api/Program.cs }
+    criteria: |
+      PASS only if all are true:
+      1. A disk-space health check is registered (directly, or via a class registered here).
+      2. Its registration carries the readiness tag (ReadinessTag, or the string "ready"),
+         so /health/ready runs it.
+      3. The /health/live endpoint still runs no checks (Predicate = _ => false).
+  - name: builds
+    type: llm
+    focus: trace
+    criteria: |
+      PASS only if, after its last code change, the agent ran `dotnet build` (or a
+      command that builds the solution) and it succeeded with 0 errors.
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    arm: with-only

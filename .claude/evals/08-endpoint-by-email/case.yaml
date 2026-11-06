@@ -1,0 +1,51 @@
+schema_version: "1.0"
+name: 08-endpoint-by-email
+description: >
+  A new endpoint threaded through all three layers, with tests for each and
+  integration tests for every documented status.
+tags: [skill-routing, endpoint]
+plugins: [../../skills]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: |
+    Add an endpoint to look up a single customer by email:
+    GET /api/customers/by-email?email=<address>. Add tests for it.
+
+    This environment can't run `dotnet test` (it blocks the local socket the test
+    runner needs), so don't try. Check your work with `dotnet build` instead.
+  max_turns: 80
+  timeout_seconds: 1500
+  allowed_tools: [Bash, Read, Edit, Write, Glob, Grep, Skill]
+runs: 3
+graders:
+  - name: route-on-controller
+    type: regex
+    target: { source: file, path: src/CustomerService.Api/Controllers/CustomersController.cs }
+    pattern: 'by-email'
+  - name: service-method
+    type: regex
+    target: { source: file, path: src/CustomerService.Api/Services/ICustomerService.cs }
+    pattern: 'Task<CustomerResponse>\s+\w*Email\w*Async'
+  - name: integration-tests-added
+    type: regex
+    target: { source: file, path: tests/CustomerService.IntegrationTests/CustomersApiTests.cs }
+    pattern: 'by-email'
+  - name: statuses-covered
+    type: llm
+    focus: { source: file, path: tests/CustomerService.IntegrationTests/CustomersApiTests.cs }
+    criteria: |
+      PASS only if the file has integration tests that call /api/customers/by-email and
+      cover all three: a found customer (200), an unknown email (404), and a missing or
+      invalid email (400).
+  - name: builds
+    type: llm
+    focus: trace
+    criteria: |
+      PASS only if, after its last code change, the agent ran `dotnet build` (or a
+      command that builds the solution) and it succeeded with 0 errors.
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: endpoint
+    arm: with-only

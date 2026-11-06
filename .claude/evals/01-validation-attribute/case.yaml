@@ -1,0 +1,54 @@
+schema_version: "1.0"
+name: 01-validation-attribute
+description: >
+  Adding a validated field to a positional record request. Regression for the
+  [property: ...] attribute target, which ASP.NET rejects at request time (every
+  POST/PUT returned 500) while unit tests still pass.
+tags: [regression, presentation-layer, migration]
+plugins: [../../skills]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: |
+    Add an optional CompanyName (at most 200 characters) to the create and update
+    customer requests, store it on the customer, and return it in responses.
+    Requests with a longer company name must be rejected. Add tests for it.
+
+    This environment can't run `dotnet test` (it blocks the local socket the test
+    runner needs), so don't try. Check your work with `dotnet build` instead.
+  max_turns: 80
+  timeout_seconds: 1500
+  allowed_tools: [Bash, Read, Edit, Write, Glob, Grep, Skill]
+runs: 3
+graders:
+  - name: attribute-on-constructor-parameter
+    type: regex
+    target: { source: file, path: src/CustomerService.Api/Contracts/CustomerContracts.cs }
+    pattern: '\[[^\]]*StringLength\(200[^\]]*\]\s*string\?\s+CompanyName'
+    match: "count:2"
+  - name: no-property-target
+    type: regex
+    target: { source: file, path: src/CustomerService.Api/Contracts/CustomerContracts.cs }
+    pattern: '\[property:'
+    match: not_contains
+  - name: migration-created
+    type: regex
+    target: files
+    pattern: 'Data/Migrations/\d+_\w+\.cs'
+  - name: too-long-name-tested
+    type: llm
+    focus: { source: file, path: tests/CustomerService.IntegrationTests/CustomersApiTests.cs }
+    criteria: |
+      PASS only if the file contains an integration test (or a row in a test's data,
+      such as InvalidCreateRequests) that sends a CompanyName longer than 200 characters
+      and expects a 400 Bad Request response.
+  - name: builds
+    type: llm
+    focus: trace
+    criteria: |
+      PASS only if, after its last code change, the agent ran `dotnet build` (or a
+      command that builds the solution) and it succeeded with 0 errors.
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    arm: with-only

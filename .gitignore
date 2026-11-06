@@ -12,3 +12,4 @@ StrykerOutput/
 .DS_Store
 .tokensave/
 .claude/worktrees/
+.claude/evals/results/

@@ -1,0 +1,44 @@
+schema_version: "1.0"
+name: 04-startup-inside-try
+description: >
+  Adding start-up work. It must run inside Program.cs's try block: as PID 1 in a
+  container, an unhandled start-up exception hangs the process instead of exiting.
+tags: [regression, aspnet-core]
+plugins: [../../skills]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: |
+    At start-up, before the app begins serving requests, load the 100 most recently
+    updated customers into an IMemoryCache so the first requests are fast.
+
+    This environment can't run `dotnet test` (it blocks the local socket the test
+    runner needs), so don't try. Check your work with `dotnet build` instead.
+  max_turns: 80
+  timeout_seconds: 1500
+  allowed_tools: [Bash, Read, Edit, Write, Glob, Grep, Skill]
+runs: 3
+graders:
+  - name: warmup-inside-try
+    type: llm
+    focus: { source: file, path: src/CustomerService.Api/Program.cs }
+    criteria: |
+      PASS only if all are true:
+      1. Program.cs runs a cache warm-up (directly or by calling a method or service) at start-up.
+      2. That warm-up runs inside the `try` block whose `catch` logs "Host terminated
+         unexpectedly" and returns 1, after `builder.Build()` and before `app.RunAsync()`.
+      3. The try/catch is still present and still returns 1 from the catch.
+  - name: fail-fast-catch-kept
+    type: regex
+    target: { source: file, path: src/CustomerService.Api/Program.cs }
+    pattern: 'Host terminated unexpectedly'
+  - name: builds
+    type: llm
+    focus: trace
+    criteria: |
+      PASS only if, after its last code change, the agent ran `dotnet build` (or a
+      command that builds the solution) and it succeeded with 0 errors.
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    arm: with-only

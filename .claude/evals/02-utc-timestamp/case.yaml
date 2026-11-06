@@ -1,0 +1,42 @@
+schema_version: "1.0"
+name: 02-utc-timestamp
+description: >
+  Adding a DateTime column. Regression for EF returning DateTimeKind.Unspecified
+  from SQL Server, which made the API emit timestamps without the "Z".
+tags: [regression, migration, ef-core]
+plugins: [../../skills]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: |
+    Add an optional LastContactedAtUtc timestamp to customers. It's set through the
+    update request and returned in customer responses. Add tests for it.
+
+    This environment can't run `dotnet test` (it blocks the local socket the test
+    runner needs), so don't try. Check your work with `dotnet build` instead.
+  max_turns: 80
+  timeout_seconds: 1500
+  allowed_tools: [Bash, Read, Edit, Write, Glob, Grep, Skill]
+runs: 3
+graders:
+  - name: utc-conversion-mapped
+    type: regex
+    target: { source: file, path: src/CustomerService.Api/Data/CustomerDbContext.cs }
+    pattern: 'LastContactedAtUtc[\s\S]{0,300}DateTimeKind\.Utc'
+  - name: migration-created
+    type: regex
+    target: files
+    pattern: 'Data/Migrations/\d+_\w+\.cs'
+  - name: model-in-sync-and-builds
+    type: llm
+    focus: trace
+    criteria: |
+      PASS only if both are true:
+      1. The agent ran `dotnet ef migrations has-pending-model-changes` (or an equivalent
+         check) after creating the migration, and it reported no pending changes.
+      2. After its last code change, the agent ran `dotnet build` (or a command that
+         builds the solution) and it succeeded with 0 errors.
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    arm: with-only
