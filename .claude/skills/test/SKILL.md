@@ -7,11 +7,11 @@ description: WHEN running the test suites, checking coverage, or deciding which 
 
 | Suite | Command | Needs |
 |---|---|---|
-| Unit + coverage gate | `dotnet test tests/CustomerService.UnitTests /p:CollectCoverage=true` | nothing |
-| Integration, SQL Server | `dotnet test tests/CustomerService.IntegrationTests` | Docker or Podman (`DOCKER_HOST` for Podman) |
-| Integration, SQLite | `INTEGRATION_TEST_DB=sqlite dotnet test tests/CustomerService.IntegrationTests` | nothing |
+| Unit + coverage gate | `dotnet test apps/api/tests/CustomerService.UnitTests /p:CollectCoverage=true` | nothing |
+| Integration, SQL Server | `dotnet test apps/api/tests/CustomerService.IntegrationTests` | Docker or Podman (`DOCKER_HOST` for Podman) |
+| Integration, SQLite | `INTEGRATION_TEST_DB=sqlite dotnet test apps/api/tests/CustomerService.IntegrationTests` | nothing |
 | Everything the PR gate runs | `sh .claude/pre-pr-checks` | nothing |
-| Mutation tests (unit suite) | `cd tests/CustomerService.UnitTests && dotnet stryker` | nothing; never from the repo root (see the `mutation` skill) |
+| Mutation tests (unit suite) | `cd apps/api/tests/CustomerService.UnitTests && dotnet stryker` | nothing; never from `apps/api` (see the `mutation` skill) |
 
 Filter: `--filter "FullyQualifiedName~<ClassOrMethod>"`.
 

@@ -5,16 +5,16 @@ description: WHEN building the container image, running the full stack with Comp
 
 # Containers: Dockerfile and Compose
 
-## Dockerfile (repo root)
+## API Dockerfile (`apps/api/Dockerfile`)
 
-- Stage `build`: `mcr.microsoft.com/dotnet/sdk:10.0`. Copies only `src/CustomerService.Api/CustomerService.Api.csproj` first and restores, so the package layer stays cached until the csproj changes; then copies `src/` and publishes Release to `/app/publish` with `/p:UseAppHost=false`.
+- Stage `build`: `mcr.microsoft.com/dotnet/sdk:10.0`. Copies only `apps/api/src/CustomerService.Api/CustomerService.Api.csproj` first and restores, so the package layer stays cached until the csproj changes; then copies `src/` and publishes Release to `/app/publish` with `/p:UseAppHost=false`.
 - Stage `runtime`: `mcr.microsoft.com/dotnet/aspnet:10.0`, `ASPNETCORE_HTTP_PORTS=8080`, runs as non-root `USER $APP_UID`, `EXPOSE 8080`, entrypoint `dotnet CustomerService.Api.dll`.
 - The runtime image has no `curl`, so there's no `HEALTHCHECK` in the Dockerfile. Probe `/health` from outside.
 - `.dockerignore` keeps `tests/`, `bin/`, `obj/`, `.env` and the compose file out of the build context. If you add a new `src/` project the API references, add its csproj to the restore `COPY` step too.
 
 ```bash
-docker build -t customer-service-api:local .
-podman build -t customer-service-api:local .
+docker build -t customer-service-api:local apps/api
+podman build -t customer-service-api:local apps/api
 ```
 
 ## Compose (`docker-compose.yml`)

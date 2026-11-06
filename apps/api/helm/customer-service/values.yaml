@@ -1,7 +1,7 @@
 # Shared defaults. Environment files (values-dev.yaml, values-staging.yaml,
 # values-prod.yaml) override only what differs. Install with both:
-#   helm upgrade --install customer-service deploy/helm/customer-service \
-#     -f deploy/helm/customer-service/values-<env>.yaml -n <namespace>
+#   helm upgrade --install customer-service apps/api/helm/customer-service \
+#     -f apps/api/helm/customer-service/values-<env>.yaml -n <namespace>
 
 replicaCount: 1
 

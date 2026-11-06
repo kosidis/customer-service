@@ -5,7 +5,7 @@ description: WHEN adding or changing repository methods, queries, the DbContext 
 
 # Data layer
 
-**Directory:** `src/CustomerService.Api/Data/`: `ICustomerRepository`, `CustomerRepository`, `CustomerDbContext`, `Migrations/`.
+**Directory:** `apps/api/src/CustomerService.Api/Data/`: `ICustomerRepository`, `CustomerRepository`, `CustomerDbContext`, `Migrations/`.
 **Entrypoint:** `ICustomerRepository`, injected into `CustomerManager`.
 
 ## Belongs here
@@ -28,8 +28,8 @@ description: WHEN adding or changing repository methods, queries, the DbContext 
 ## Add or edit within the layer
 
 1. Add the method to `ICustomerRepository`, implement it in `CustomerRepository`. Use `AsNoTracking()` for read-only lists; keep single-entity reads tracked when the caller will update them; order deterministically before `Skip`/`Take`; pass the `CancellationToken`.
-2. Test in `tests/CustomerService.UnitTests/Data/CustomerRepositoryTests.cs` on SQLite in-memory, verifying through a second context.
-3. Run `dotnet test tests/CustomerService.IntegrationTests` against SQL Server: SQLite translates some LINQ differently (collation, string functions).
+2. Test in `apps/api/tests/CustomerService.UnitTests/Data/CustomerRepositoryTests.cs` on SQLite in-memory, verifying through a second context.
+3. Run `dotnet test apps/api/tests/CustomerService.IntegrationTests` against SQL Server: SQLite translates some LINQ differently (collation, string functions).
 4. Changing a signature ripples to `CustomerManager` and its strict mock setups in `CustomerManagerTests`.
 5. Model changes: follow `migration`.
 

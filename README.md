@@ -31,16 +31,16 @@ Request body for `POST` and `PUT`:
 ## Project layout
 
 ```
-src/CustomerService.Api/
+apps/api/src/CustomerService.Api/
   Controllers/   HTTP endpoints
   Services/      business rules (CustomerManager)
   Data/          DbContext, repository and EF migrations
   Contracts/     request and response models with validation
   Domain/        the Customer entity
   Errors/        exception types and the global exception handler
-tests/CustomerService.UnitTests/         xUnit and Moq, coverage gate at 80% line
-tests/CustomerService.IntegrationTests/  WebApplicationFactory against a real database
-deploy/helm/customer-service/            Helm chart, with values for dev, staging and prod
+apps/api/tests/CustomerService.UnitTests/         xUnit and Moq, coverage gate at 80% line
+apps/api/tests/CustomerService.IntegrationTests/  WebApplicationFactory against a real database
+apps/api/helm/customer-service/            Helm chart, with values for dev, staging and prod
 ```
 
 ## Run with Docker
@@ -77,7 +77,7 @@ curl -i -X POST http://localhost:8080/api/customers \
 
 ## Deploy to Kubernetes with Helm
 
-The chart is in `deploy/helm/customer-service`. It creates a Deployment, a `ClusterIP` Service and a ServiceAccount, plus an Ingress when `ingress.enabled` is true. Prod also gets a HorizontalPodAutoscaler and a PodDisruptionBudget.
+The chart is in `apps/api/helm/customer-service`. It creates a Deployment, a `ClusterIP` Service and a ServiceAccount, plus an Ingress when `ingress.enabled` is true. Prod also gets a HorizontalPodAutoscaler and a PodDisruptionBudget.
 
 | | dev | staging | prod |
 |---|---|---|---|
@@ -90,7 +90,7 @@ The chart is in `deploy/helm/customer-service`. It creates a Deployment, a `Clus
 1. Push the image to your registry:
 
     ```bash
-    docker build -t <registry>/customer-service-api:<tag> .
+    docker build -t <registry>/customer-service-api:<tag> apps/api
     docker push <registry>/customer-service-api:<tag>
     ```
 
@@ -104,8 +104,8 @@ The chart is in `deploy/helm/customer-service`. It creates a Deployment, a `Clus
 3. Install or upgrade, choosing the environment's values file:
 
     ```bash
-    helm upgrade --install customer-service deploy/helm/customer-service -n <namespace> \
-      -f deploy/helm/customer-service/values-<env>.yaml \
+    helm upgrade --install customer-service apps/api/helm/customer-service -n <namespace> \
+      -f apps/api/helm/customer-service/values-<env>.yaml \
       --set image.repository=<registry>/customer-service-api --set image.tag=<tag>
     ```
 
@@ -116,8 +116,8 @@ The pods run migrations at start-up (`database.applyMigrationsOnStartup`). Sever
 Check a change before deploying:
 
 ```bash
-helm lint deploy/helm/customer-service -f deploy/helm/customer-service/values-<env>.yaml
-helm template customer-service deploy/helm/customer-service -f deploy/helm/customer-service/values-<env>.yaml
+helm lint apps/api/helm/customer-service -f apps/api/helm/customer-service/values-<env>.yaml
+helm template customer-service apps/api/helm/customer-service -f apps/api/helm/customer-service/values-<env>.yaml
 ```
 
 ## Run locally
@@ -126,8 +126,8 @@ Start SQL Server (for example `docker compose up sqlserver`), then:
 
 ```bash
 dotnet tool restore
-dotnet ef database update -p src/CustomerService.Api
-dotnet run --project src/CustomerService.Api
+dotnet ef database update -p apps/api/src/CustomerService.Api
+dotnet run --project apps/api/src/CustomerService.Api
 ```
 
 The connection string lives in `ConnectionStrings:CustomerDb` in `appsettings.json`. Override it with the `ConnectionStrings__CustomerDb` environment variable. Set `Database__ApplyMigrationsOnStartup=true` to migrate at start-up instead of running `dotnet ef`.
@@ -137,44 +137,44 @@ The connection string lives in `ConnectionStrings:CustomerDb` in `appsettings.js
 Unit tests with the coverage gate (the run fails below 80% line coverage):
 
 ```bash
-dotnet test tests/CustomerService.UnitTests /p:CollectCoverage=true
+dotnet test apps/api/tests/CustomerService.UnitTests /p:CollectCoverage=true
 ```
 
-The Cobertura report goes to `tests/CustomerService.UnitTests/TestResults/coverage/`.
+The Cobertura report goes to `apps/api/tests/CustomerService.UnitTests/TestResults/coverage/`.
 
 Integration tests start SQL Server 2022 in Docker through Testcontainers, apply the migrations and call every endpoint over HTTP:
 
 ```bash
-dotnet test tests/CustomerService.IntegrationTests
+dotnet test apps/api/tests/CustomerService.IntegrationTests
 ```
 
 With Podman, point Testcontainers at the Podman socket first:
 
 ```bash
 export DOCKER_HOST="unix://$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}')"
-dotnet test tests/CustomerService.IntegrationTests
+dotnet test apps/api/tests/CustomerService.IntegrationTests
 ```
 
 Without a container runtime, run the same suite against SQLite in-memory:
 
 ```bash
-INTEGRATION_TEST_DB=sqlite dotnet test tests/CustomerService.IntegrationTests
+INTEGRATION_TEST_DB=sqlite dotnet test apps/api/tests/CustomerService.IntegrationTests
 ```
 
 Mutation tests with [Stryker.NET](https://stryker-mutator.io/docs/stryker-net/introduction/) check that the unit tests would catch real bugs, not only that they run the code. Stryker makes small changes to the API code and reports each one no test catches:
 
 ```bash
 dotnet tool restore
-cd tests/CustomerService.UnitTests
+cd apps/api/tests/CustomerService.UnitTests
 dotnet stryker
 ```
 
-Run it from the unit test folder, not the repo root: from the root, Stryker picks up the solution and runs the integration tests too. Settings are in `tests/CustomerService.UnitTests/stryker-config.json`. The HTML report goes to `tests/CustomerService.UnitTests/StrykerOutput/<timestamp>/reports/mutation-report.html`.
+Run it from the unit test folder, not `apps/api`: there, Stryker picks up the solution and runs the integration tests too. Settings are in `apps/api/tests/CustomerService.UnitTests/stryker-config.json`. The HTML report goes to `apps/api/tests/CustomerService.UnitTests/StrykerOutput/<timestamp>/reports/mutation-report.html`.
 
 ## Adding a migration
 
 ```bash
-dotnet ef migrations add <MigrationName> -p src/CustomerService.Api -o Data/Migrations
+dotnet ef migrations add <MigrationName> -p apps/api/src/CustomerService.Api -o Data/Migrations
 ```
 
 ## Notes

@@ -1,11 +1,11 @@
 ---
 name: helm
-description: WHEN changing the Helm chart in deploy/helm/customer-service, adding a value or environment, or deploying and debugging the service on Kubernetes.
+description: WHEN changing the Helm chart in apps/api/helm/customer-service, adding a value or environment, or deploying and debugging the service on Kubernetes.
 ---
 
 # Helm chart
 
-Chart: `deploy/helm/customer-service` (`apiVersion: v2`, chart `version` 0.1.0, `appVersion` 1.0.0). Built and tested with Helm 4.
+Chart: `apps/api/helm/customer-service` (`apiVersion: v2`, chart `version` 0.1.0, `appVersion` 1.0.0). Built and tested with Helm 4.
 
 ## Layout
 
@@ -29,8 +29,8 @@ Chart: `deploy/helm/customer-service` (`apiVersion: v2`, chart `version` 0.1.0, 
 3. If it must always be set, add it to `values.schema.json`.
 4. Check every environment:
    ```bash
-   helm lint deploy/helm/customer-service -f deploy/helm/customer-service/values-dev.yaml
-   helm template customer-service deploy/helm/customer-service -f deploy/helm/customer-service/values-prod.yaml
+   helm lint apps/api/helm/customer-service -f apps/api/helm/customer-service/values-dev.yaml
+   helm template customer-service apps/api/helm/customer-service -f apps/api/helm/customer-service/values-prod.yaml
    sh .claude/pre-pr-checks       # lints and renders all three
    ```
 5. Bump `version` in `Chart.yaml` for any chart change, and `appVersion` when the default image changes.
@@ -43,7 +43,7 @@ Copy the closest `values-<env>.yaml`, adjust replicas, resources, ingress host a
 
 ```bash
 KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster --name customer-service-test
-podman build -t localhost/customer-service-api:dev .
+podman build -t localhost/customer-service-api:dev apps/api
 podman save -o /tmp/api.tar localhost/customer-service-api:dev
 KIND_EXPERIMENTAL_PROVIDER=podman kind load image-archive /tmp/api.tar --name customer-service-test
 ```

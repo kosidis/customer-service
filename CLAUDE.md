@@ -2,20 +2,20 @@
 
 ## What this is
 
-A REST API for customer CRUD on .NET 10, ASP.NET Core controllers and EF Core 10 over SQL Server 2022. It's one deployable (`src/CustomerService.Api`) with two test projects.
+A REST API for customer CRUD on .NET 10, ASP.NET Core controllers and EF Core 10 over SQL Server 2022. It's one deployable (`apps/api/src/CustomerService.Api`) with two test projects.
 
 | Module | Responsibility |
 |---|---|
-| `src/CustomerService.Api/Controllers/` | HTTP endpoints only; no logic beyond mapping results to status codes |
-| `src/CustomerService.Api/Contracts/` | Request/response records and validation attributes |
-| `src/CustomerService.Api/Errors/` | `NotFoundException`, `ConflictException`, `GlobalExceptionHandler` (exception → ProblemDetails) |
-| `src/CustomerService.Api/Services/` | Business rules (`CustomerManager` implements `ICustomerService`) |
-| `src/CustomerService.Api/Domain/` | The `Customer` entity |
-| `src/CustomerService.Api/Data/` | `CustomerDbContext`, `CustomerRepository` (implements `ICustomerRepository`), `Migrations/` |
-| `src/CustomerService.Api/Program.cs` | DI wiring, middleware, health checks, optional migrate-on-start-up |
-| `tests/CustomerService.UnitTests/` | xUnit + Moq; folders mirror the API's |
-| `tests/CustomerService.IntegrationTests/` | HTTP tests through `WebApplicationFactory` against a real database |
-| `deploy/helm/customer-service/` | Helm chart; `values-dev.yaml`, `values-staging.yaml`, `values-prod.yaml` per environment. See the `helm` skill |
+| `apps/api/src/CustomerService.Api/Controllers/` | HTTP endpoints only; no logic beyond mapping results to status codes |
+| `apps/api/src/CustomerService.Api/Contracts/` | Request/response records and validation attributes |
+| `apps/api/src/CustomerService.Api/Errors/` | `NotFoundException`, `ConflictException`, `GlobalExceptionHandler` (exception → ProblemDetails) |
+| `apps/api/src/CustomerService.Api/Services/` | Business rules (`CustomerManager` implements `ICustomerService`) |
+| `apps/api/src/CustomerService.Api/Domain/` | The `Customer` entity |
+| `apps/api/src/CustomerService.Api/Data/` | `CustomerDbContext`, `CustomerRepository` (implements `ICustomerRepository`), `Migrations/` |
+| `apps/api/src/CustomerService.Api/Program.cs` | DI wiring, middleware, health checks, optional migrate-on-start-up |
+| `apps/api/tests/CustomerService.UnitTests/` | xUnit + Moq; folders mirror the API's |
+| `apps/api/tests/CustomerService.IntegrationTests/` | HTTP tests through `WebApplicationFactory` against a real database |
+| `apps/api/helm/customer-service/` | Helm chart; `values-dev.yaml`, `values-staging.yaml`, `values-prod.yaml` per environment. See the `helm` skill |
 
 Dependencies point one way: Controllers → `ICustomerService` → `ICustomerRepository` → `CustomerDbContext`. See the `presentation-layer`, `business-layer` and `data-layer` skills.
 
@@ -32,12 +32,12 @@ Full walkthrough: the `dev-setup` skill.
 ## Build / test / run
 
 ```bash
-dotnet build
-dotnet test tests/CustomerService.UnitTests /p:CollectCoverage=true      # fails below 80% line coverage
-dotnet test tests/CustomerService.IntegrationTests                       # SQL Server via Testcontainers
-INTEGRATION_TEST_DB=sqlite dotnet test tests/CustomerService.IntegrationTests   # no container runtime needed
-cd tests/CustomerService.UnitTests && dotnet stryker                     # mutation tests; never from the root (see the `mutation` skill)
-dotnet run --project src/CustomerService.Api                             # needs SQL Server and a migrated DB
+dotnet build apps/api
+dotnet test apps/api/tests/CustomerService.UnitTests /p:CollectCoverage=true      # fails below 80% line coverage
+dotnet test apps/api/tests/CustomerService.IntegrationTests                       # SQL Server via Testcontainers
+INTEGRATION_TEST_DB=sqlite dotnet test apps/api/tests/CustomerService.IntegrationTests   # no container runtime needed
+cd apps/api/tests/CustomerService.UnitTests && dotnet stryker                     # mutation tests; never from apps/api (see the `mutation` skill)
+dotnet run --project apps/api/src/CustomerService.Api                             # needs SQL Server and a migrated DB
 docker compose up --build                                                # full stack on http://localhost:8080
 ```
 
@@ -58,14 +58,14 @@ With Podman, export `DOCKER_HOST="unix://$(podman machine inspect --format '{{.C
 
 ## Database changes
 
-Migrations live in `src/CustomerService.Api/Data/Migrations/` and target SQL Server.
+Migrations live in `apps/api/src/CustomerService.Api/Data/Migrations/` and target SQL Server.
 
 ```bash
-dotnet ef migrations add <MigrationName> -p src/CustomerService.Api -o Data/Migrations
-dotnet ef database update -p src/CustomerService.Api                     # apply
-dotnet ef database update <PreviousMigrationName> -p src/CustomerService.Api   # roll back
-dotnet ef migrations remove -p src/CustomerService.Api                   # drop the last, unapplied migration
-dotnet ef migrations has-pending-model-changes -p src/CustomerService.Api      # MUST report no changes before a PR
+dotnet ef migrations add <MigrationName> -p apps/api/src/CustomerService.Api -o Data/Migrations
+dotnet ef database update -p apps/api/src/CustomerService.Api                     # apply
+dotnet ef database update <PreviousMigrationName> -p apps/api/src/CustomerService.Api   # roll back
+dotnet ef migrations remove -p apps/api/src/CustomerService.Api                   # drop the last, unapplied migration
+dotnet ef migrations has-pending-model-changes -p apps/api/src/CustomerService.Api      # MUST report no changes before a PR
 ```
 
 Never edit a migration that has been applied outside your machine; add a new one. Details: the `migration` skill.

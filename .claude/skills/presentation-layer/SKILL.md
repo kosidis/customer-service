@@ -5,7 +5,7 @@ description: WHEN working on HTTP-facing code (controllers, request/response con
 
 # Presentation layer
 
-**Directories:** `src/CustomerService.Api/Controllers/`, `Contracts/`, `Errors/`, and `Program.cs`.
+**Directories:** `apps/api/src/CustomerService.Api/Controllers/`, `Contracts/`, `Errors/`, and `Program.cs`.
 **Entrypoints:** `CustomersController` actions under `/api/customers`; `/health`; `/openapi/v1.json` in Development.
 
 ## Belongs here
@@ -35,4 +35,4 @@ description: WHEN working on HTTP-facing code (controllers, request/response con
 - New error status: exception type in `Errors/Exceptions.cs`, a `switch` arm in `GlobalExceptionHandler`, a row in `GlobalExceptionHandlerTests.KnownExceptions`.
 - Changing a contract ripples to `CustomerManager` (mapping) and the integration tests, and is visible to API clients.
 
-Tests: `tests/CustomerService.UnitTests/Controllers/`, `Errors/`, `Contracts/`, and all of `CustomersApiTests`. See `aspnet-core` for framework details.
+Tests: `apps/api/tests/CustomerService.UnitTests/Controllers/`, `Errors/`, `Contracts/`, and all of `CustomersApiTests`. See `aspnet-core` for framework details.

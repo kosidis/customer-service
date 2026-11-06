@@ -5,7 +5,7 @@ description: WHEN adding or changing controllers, request validation, error resp
 
 # ASP.NET Core in this repo
 
-ASP.NET Core 10 with MVC controllers (not minimal APIs). All wiring is in `src/CustomerService.Api/Program.cs`.
+ASP.NET Core 10 with MVC controllers (not minimal APIs). All wiring is in `apps/api/src/CustomerService.Api/Program.cs`.
 
 ## Wiring in `Program.cs`
 

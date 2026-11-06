@@ -19,11 +19,11 @@ The API migrates the database on start-up in Compose.
 ```bash
 docker compose up -d sqlserver
 dotnet tool restore
-dotnet ef database update -p src/CustomerService.Api
-dotnet run --project src/CustomerService.Api                  # http://localhost:5062 (launchSettings "http" profile)
+dotnet ef database update -p apps/api/src/CustomerService.Api
+dotnet run --project apps/api/src/CustomerService.Api                  # http://localhost:5062 (launchSettings "http" profile)
 ```
 
-Or skip the `ef` step with `Database__ApplyMigrationsOnStartup=true dotnet run --project src/CustomerService.Api`. The `Development` environment (set by `launchSettings.json`) serves OpenAPI at `/openapi/v1.json`.
+Or skip the `ef` step with `Database__ApplyMigrationsOnStartup=true dotnet run --project apps/api/src/CustomerService.Api`. The `Development` environment (set by `launchSettings.json`) serves OpenAPI at `/openapi/v1.json`.
 
 ## Exercise every operation
 

@@ -23,7 +23,7 @@ description: WHEN setting up a fresh clone of this repo, or a new machine, to bu
 
 ```bash
 dotnet tool restore            # dotnet-ef 10.0.14
-dotnet restore
+dotnet restore apps/api
 ```
 
 ## 3. Configuration
@@ -32,7 +32,7 @@ No secrets are needed for local work. The repo reads:
 
 | Setting | Default | Where set |
 |---|---|---|
-| `ConnectionStrings__CustomerDb` | `localhost,1433`, `sa` / `Your_strong_Passw0rd` | `src/CustomerService.Api/appsettings.json`; Compose overrides it |
+| `ConnectionStrings__CustomerDb` | `localhost,1433`, `sa` / `Your_strong_Passw0rd` | `apps/api/src/CustomerService.Api/appsettings.json`; Compose overrides it |
 | `Database__ApplyMigrationsOnStartup` | `false` | `appsettings.json`; Compose sets `true` |
 | `MSSQL_SA_PASSWORD` | `Your_strong_Passw0rd` | shell or a gitignored `.env` next to `docker-compose.yml` |
 | `INTEGRATION_TEST_DB` | unset (SQL Server) | set to `sqlite` to run integration tests without containers |
@@ -44,7 +44,7 @@ If you change `MSSQL_SA_PASSWORD`, change the connection string to match.
 
 ```bash
 docker compose up -d sqlserver          # or podman compose up -d sqlserver
-dotnet ef database update -p src/CustomerService.Api
+dotnet ef database update -p apps/api/src/CustomerService.Api
 ```
 
 There's no seed data; create customers through the API.
@@ -53,7 +53,7 @@ There's no seed data; create customers through the API.
 
 ```bash
 sh .claude/pre-pr-checks                # build, migrations check, unit + integration (SQLite)
-dotnet test tests/CustomerService.IntegrationTests   # against real SQL Server
+dotnet test apps/api/tests/CustomerService.IntegrationTests   # against real SQL Server
 docker compose up --build -d && curl -s http://localhost:8080/health
 ```
 

@@ -9,9 +9,9 @@ Packages: `Microsoft.EntityFrameworkCore.SqlServer` and `.Design` 10.0.14 in the
 
 ## Where things live
 
-- `src/CustomerService.Api/Data/CustomerDbContext.cs`: one `DbSet<Customer>`, all mapping in `OnModelCreating` with the fluent API. No data annotations on entities.
-- `src/CustomerService.Api/Data/CustomerRepository.cs`: the only class that queries the context.
-- `src/CustomerService.Api/Data/Migrations/`: SQL Server migrations (see the `migration` skill).
+- `apps/api/src/CustomerService.Api/Data/CustomerDbContext.cs`: one `DbSet<Customer>`, all mapping in `OnModelCreating` with the fluent API. No data annotations on entities.
+- `apps/api/src/CustomerService.Api/Data/CustomerRepository.cs`: the only class that queries the context.
+- `apps/api/src/CustomerService.Api/Data/Migrations/`: SQL Server migrations (see the `migration` skill).
 
 ## Registration (`Program.cs`)
 
@@ -49,4 +49,4 @@ builder.Services.AddDbContext<CustomerDbContext>((services, options) =>
 ## Gotchas
 
 - SQLite is lenient on types and won't catch SQL Server-only failures (length overflow, `datetime2` precision). Run the Testcontainers suite after model changes.
-- After any model change, `dotnet ef migrations has-pending-model-changes -p src/CustomerService.Api` must say "No changes".
+- After any model change, `dotnet ef migrations has-pending-model-changes -p apps/api/src/CustomerService.Api` must say "No changes".

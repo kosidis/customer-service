@@ -22,17 +22,23 @@ run() {
   fi
 }
 
-run "restore local tools" dotnet tool restore
-run "build" dotnet build --nologo
-run "no unmigrated model changes" dotnet ef migrations has-pending-model-changes -p src/CustomerService.Api --no-build
-run "unit tests + 80% coverage gate" dotnet test tests/CustomerService.UnitTests --nologo /p:CollectCoverage=true
-run "integration tests (SQLite)" env INTEGRATION_TEST_DB=sqlite dotnet test tests/CustomerService.IntegrationTests --nologo
+# API (apps/api). The tool manifest is at the repo root, so dotnet ef works from here.
+run "api: restore local tools" dotnet tool restore
+run "api: build" dotnet build apps/api --nologo
+run "api: no unmigrated model changes" dotnet ef migrations has-pending-model-changes -p apps/api/src/CustomerService.Api --no-build
+run "api: unit tests + 80% coverage gate" dotnet test apps/api/tests/CustomerService.UnitTests --nologo /p:CollectCoverage=true
+run "api: integration tests (SQLite)" env INTEGRATION_TEST_DB=sqlite dotnet test apps/api/tests/CustomerService.IntegrationTests --nologo
 
-chart=deploy/helm/customer-service
+# Helm: every chart under apps/*/helm, for each environment's values file.
 if command -v helm >/dev/null 2>&1; then
-  for env in dev staging prod; do
-    run "helm lint ($env)" helm lint "$chart" -f "$chart/values-$env.yaml" --quiet
-    run "helm template ($env)" sh -c "helm template customer-service '$chart' -f '$chart/values-$env.yaml' >/dev/null"
+  for chart in apps/*/helm/*/; do
+    chart="${chart%/}"
+    # Not "name": run() assigns that, and sh has no local variables.
+    chart_name="$(basename "$chart")"
+    for env in dev staging prod; do
+      run "helm lint $chart_name ($env)" helm lint "$chart" -f "$chart/values-$env.yaml" --quiet
+      run "helm template $chart_name ($env)" sh -c "helm template '$chart_name' '$chart' -f '$chart/values-$env.yaml' >/dev/null"
+    done
   done
 else
   echo "==> helm not installed: skipping chart checks (brew install helm)" >&2

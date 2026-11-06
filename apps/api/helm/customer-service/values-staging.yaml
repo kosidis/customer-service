@@ -1,0 +1,20 @@
+# Staging: two replicas, production-like settings.
+replicaCount: 2
+
+aspnetcoreEnvironment: Staging
+
+database:
+  existingSecret: customer-service-db
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 192Mi
+  limits:
+    cpu: 500m
+    memory: 384Mi
+
+# Only the web app (apps/web) calls the API, over its ClusterIP Service, so the
+# API isn't exposed. The web chart's ingress takes the public host.
+ingress:
+  enabled: false
