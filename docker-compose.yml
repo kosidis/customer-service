@@ -29,5 +29,15 @@ services:
     ports:
       - "8080:8080"
 
+  web:
+    build: ./apps/web
+    depends_on:
+      - api
+    environment:
+      # Server-side only: the browser talks to the web app, which calls the API.
+      API_BASE_URL: http://api:8080
+    ports:
+      - "3000:3000"
+
 volumes:
   sqlserver-data:
