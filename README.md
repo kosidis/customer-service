@@ -1,6 +1,9 @@
 # Customer service
 
-A REST API for creating, reading, updating and deleting customers. It runs on .NET 10 and ASP.NET Core, and stores data in SQL Server through EF Core 10.
+A monorepo for managing customers: a REST API and a web UI.
+
+- `apps/api`: the REST API. It runs on .NET 10 and ASP.NET Core, and stores data in SQL Server through EF Core 10.
+- `apps/web`: a Next.js 16 web app to list, search, add, edit and delete customers. It calls the API from the server.
 
 ## API
 
@@ -31,17 +34,55 @@ Request body for `POST` and `PUT`:
 ## Project layout
 
 ```
-apps/api/src/CustomerService.Api/
-  Controllers/   HTTP endpoints
-  Services/      business rules (CustomerManager)
-  Data/          DbContext, repository and EF migrations
-  Contracts/     request and response models with validation
-  Domain/        the Customer entity
-  Errors/        exception types and the global exception handler
-apps/api/tests/CustomerService.UnitTests/         xUnit and Moq, coverage gate at 80% line
-apps/api/tests/CustomerService.IntegrationTests/  WebApplicationFactory against a real database
-apps/api/helm/customer-service/            Helm chart, with values for dev, staging and prod
+docker-compose.yml   SQL Server, the API and the web app
+apps/api/
+  Dockerfile
+  src/CustomerService.Api/
+    Controllers/   HTTP endpoints
+    Services/      business rules (CustomerManager)
+    Data/          DbContext, repository and EF migrations
+    Contracts/     request and response models with validation
+    Domain/        the Customer entity
+    Errors/        exception types and the global exception handler
+  tests/CustomerService.UnitTests/         xUnit and Moq, coverage gate at 80% line
+  tests/CustomerService.IntegrationTests/  WebApplicationFactory against a real database
+  helm/customer-service/                   Helm chart, with values for dev, staging and prod
+apps/web/
+  Dockerfile
+  src/app/         App Router pages, server actions (customers/actions.ts), /api/health
+  src/components/  form, table, pagination, search and delete components
+  src/lib/api/     the only code that calls the API (server-only)
+  src/__tests__/   Jest and React Testing Library, coverage gate at 80%
+  helm/customer-service-web/               Helm chart, with values for dev, staging and prod
 ```
+
+## Web app
+
+The web app in `apps/web` lists customers with search and pagination, and has forms to add and edit a customer and a button to delete one. There's no login. The browser only talks to the web app: pages, server actions and the API client (`src/lib/api`) run on the server and call the API, so validation errors and conflicts come from the API's rules. `GET /api/health` returns `200 Healthy` without calling the API.
+
+You need Node 24. Start the API first (for example `docker compose up -d sqlserver api`), then:
+
+```bash
+cd apps/web
+npm ci
+API_BASE_URL=http://localhost:8080 npm run dev     # http://localhost:3000
+```
+
+| Variable | Required | Description |
+|---|---|---|
+| `API_BASE_URL` | yes | Base URL of the API, for example `http://localhost:8080`. Read at request time, so one image works in every environment. |
+
+Checks, all from `apps/web`:
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run test:coverage    # fails below 80% lines, branches, functions and statements
+npm run build
+```
+
+More in `apps/web/README.md`.
 
 ## Run with Docker
 
@@ -51,7 +92,7 @@ You need Docker with Compose. From the repository root:
 docker compose up --build
 ```
 
-This starts SQL Server 2022 and the API on `http://localhost:8080`. The API applies EF migrations at start-up. To change the SA password, set `MSSQL_SA_PASSWORD` in a `.env` file next to `docker-compose.yml`; it must meet SQL Server's complexity rules.
+This starts SQL Server 2022, the API on `http://localhost:8080` and the web app on `http://localhost:3000`. The web app reaches the API at `http://api:8080` (`API_BASE_URL`). The API applies EF migrations at start-up. To change the SA password, set `MSSQL_SA_PASSWORD` in a `.env` file next to `docker-compose.yml`; it must meet SQL Server's complexity rules.
 
 ### Podman
 
@@ -65,7 +106,7 @@ podman machine start
 podman compose up -d --build
 ```
 
-`podman-compose` rebuilds the image but keeps a running container, so after a code change run `podman compose up -d --build --force-recreate api`.
+`podman-compose` rebuilds the image but keeps a running container, so after a code change run `podman compose up -d --build --force-recreate api web` (name only the service you changed). Open `http://localhost:3000` for the UI.
 
 Try it:
 
@@ -77,7 +118,7 @@ curl -i -X POST http://localhost:8080/api/customers \
 
 ## Deploy to Kubernetes with Helm
 
-The chart is in `apps/api/helm/customer-service`. It creates a Deployment, a `ClusterIP` Service and a ServiceAccount, plus an Ingress when `ingress.enabled` is true. Prod also gets a HorizontalPodAutoscaler and a PodDisruptionBudget.
+Each app has its own chart: `apps/api/helm/customer-service` for the API and `apps/web/helm/customer-service-web` for the web app. The sections below cover the API chart, then the web chart. The API chart creates a Deployment, a `ClusterIP` Service and a ServiceAccount, plus an Ingress when `ingress.enabled` is true. Prod also gets a HorizontalPodAutoscaler and a PodDisruptionBudget.
 
 | | dev | staging | prod |
 |---|---|---|---|
@@ -85,7 +126,9 @@ The chart is in `apps/api/helm/customer-service`. It creates a Deployment, a `Cl
 | Replicas | 1 | 2 | HPA, 3 to 10 at 70% CPU |
 | CPU request / limit | 50m / 250m | 100m / 500m | 250m / 1000m |
 | Memory request / limit | 128Mi / 256Mi | 192Mi / 384Mi | 256Mi / 512Mi |
-| Ingress | off | on | on |
+| Ingress | off | off | off |
+
+The API is reached only inside the cluster through its `ClusterIP` Service (port 80); the web chart's ingress owns the public host. Turn the API ingress on with `--set ingress.enabled=true` only if you need to call the API from outside.
 
 1. Push the image to your registry:
 
@@ -109,7 +152,7 @@ The chart is in `apps/api/helm/customer-service`. It creates a Deployment, a `Cl
       --set image.repository=<registry>/customer-service-api --set image.tag=<tag>
     ```
 
-The ingress hosts, TLS Secret names and the `nginx` ingress class in the values files are placeholders; set your own. Turn the ingress on or off in any environment with `--set ingress.enabled=true|false`.
+The ingress hosts, TLS Secret names and the `nginx` ingress class in the values files are placeholders; set your own.
 
 The pods run migrations at start-up (`database.applyMigrationsOnStartup`). Several replicas can start at once: EF Core serialises migrations with a lock, and the app retries while another replica is creating the database. Probes use `/health/live` for startup and liveness, and `/health/ready` for readiness, so a database outage takes pods out of the Service without restarting them. `values.schema.json` rejects a values file without cpu and memory requests and limits, or without a database Secret.
 
@@ -118,6 +161,38 @@ Check a change before deploying:
 ```bash
 helm lint apps/api/helm/customer-service -f apps/api/helm/customer-service/values-<env>.yaml
 helm template customer-service apps/api/helm/customer-service -f apps/api/helm/customer-service/values-<env>.yaml
+```
+
+### Web chart
+
+The web chart creates a Deployment, a `ClusterIP` Service (port 80 to container port 3000) and a ServiceAccount, plus an Ingress when `ingress.enabled` is true. Prod also gets a HorizontalPodAutoscaler and a PodDisruptionBudget. It has no Secret: the app holds no credentials.
+
+| | dev | staging | prod |
+|---|---|---|---|
+| Values file | `values-dev.yaml` | `values-staging.yaml` | `values-prod.yaml` |
+| Replicas | 1 | 2 | HPA, 3 to 10 at 70% CPU |
+| CPU request / limit | 50m / 250m | 100m / 500m | 250m / 1000m |
+| Memory request / limit | 128Mi / 256Mi | 192Mi / 384Mi | 256Mi / 512Mi |
+| Ingress | off | on | on |
+
+The browser only talks to the web app, so the web ingress is the public entry point. The web pods call the API at `apiBaseUrl` (the `API_BASE_URL` env var), which defaults to `http://customer-service`: the API chart's Service in the same namespace. Set `--set apiBaseUrl=...` if you named the API release differently or installed it elsewhere. All three probes use `/api/health`, which never calls the API, so an API outage doesn't restart or unready the web pods.
+
+Install the API first, then the web app:
+
+```bash
+docker build -t <registry>/customer-service-web:<tag> apps/web
+docker push <registry>/customer-service-web:<tag>
+
+helm upgrade --install customer-service-web apps/web/helm/customer-service-web -n <namespace> \
+  -f apps/web/helm/customer-service-web/values-<env>.yaml \
+  --set image.repository=<registry>/customer-service-web --set image.tag=<tag>
+```
+
+In dev the ingress is off; use `kubectl port-forward svc/customer-service-web 3000:80 -n <namespace>`. Check the chart as for the API:
+
+```bash
+helm lint apps/web/helm/customer-service-web -f apps/web/helm/customer-service-web/values-<env>.yaml
+helm template customer-service-web apps/web/helm/customer-service-web -f apps/web/helm/customer-service-web/values-<env>.yaml
 ```
 
 ## Run locally
@@ -132,9 +207,13 @@ dotnet run --project apps/api/src/CustomerService.Api
 
 The connection string lives in `ConnectionStrings:CustomerDb` in `appsettings.json`. Override it with the `ConnectionStrings__CustomerDb` environment variable. Set `Database__ApplyMigrationsOnStartup=true` to migrate at start-up instead of running `dotnet ef`.
 
+To run the UI against this API, see [Web app](#web-app) and use `API_BASE_URL=http://localhost:5062` (the `dotnet run` port) or `http://localhost:8080` (Compose).
+
 ## Tests
 
-Unit tests with the coverage gate (the run fails below 80% line coverage):
+The web app's tests are under [Web app](#web-app). `sh .claude/pre-pr-checks` runs both suites, the web build and the Helm checks for both charts.
+
+API unit tests with the coverage gate (the run fails below 80% line coverage):
 
 ```bash
 dotnet test apps/api/tests/CustomerService.UnitTests /p:CollectCoverage=true

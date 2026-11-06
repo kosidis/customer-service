@@ -2,7 +2,14 @@
 
 ## What this is
 
-A REST API for customer CRUD on .NET 10, ASP.NET Core controllers and EF Core 10 over SQL Server 2022. It's one deployable (`apps/api/src/CustomerService.Api`) with two test projects.
+A monorepo for customer management with two deployables:
+
+- `apps/api`: a REST API for customer CRUD on .NET 10, ASP.NET Core controllers and EF Core 10 over SQL Server 2022 (`apps/api/src/CustomerService.Api`, plus two test projects).
+- `apps/web`: a Next.js 16 (App Router, React 19, Tailwind 4, TypeScript) UI to list, search, add, edit and delete customers. It has no login and no database; it calls the API from the server only.
+
+The browser never talks to the API. In Compose and Kubernetes only the web app is the public entry point (`API_BASE_URL` points it at the API).
+
+API modules:
 
 | Module | Responsibility |
 |---|---|
@@ -19,6 +26,19 @@ A REST API for customer CRUD on .NET 10, ASP.NET Core controllers and EF Core 10
 
 Dependencies point one way: Controllers → `ICustomerService` → `ICustomerRepository` → `CustomerDbContext`. See the `presentation-layer`, `business-layer` and `data-layer` skills.
 
+Web modules (all under `apps/web`):
+
+| Module | Responsibility |
+|---|---|
+| `src/lib/api/` | The only place that calls the API; `import "server-only"`. `http.ts` (`apiFetch`, `ApiError`), `customers.ts` (one function per endpoint), `types.ts` (request/response types). See the `web-api-layer` skill |
+| `src/app/customers/actions.ts` | Server actions (`"use server"`): create, update, delete; map `ApiError` to form state |
+| `src/app/` | App Router pages, `layout.tsx`, `customers/error.tsx`, `customers/loading.tsx`, `api/health/route.ts` (`GET /api/health`, no backend call). See the `nextjs` skill |
+| `src/components/` | `CustomerForm`, `CustomerTable`, `DeleteCustomerButton`, `Pagination`, `SearchBox` |
+| `src/lib/form-state.ts` | `CustomerFormState` shape and `initialFormState` |
+| `src/__tests__/` | Jest + React Testing Library, one file per area. See the `jest-rtl` skill |
+| `helm/customer-service-web/` | Helm chart; `values-dev.yaml`, `values-staging.yaml`, `values-prod.yaml`. See the `helm` skill |
+| `Dockerfile` | Multi-stage `node:24-alpine`, standalone output, UID 1001, port 3000. See the `docker` skill |
+
 ## Local setup
 
 - .NET SDK 10.0.x. Run `dotnet tool restore` once to get `dotnet-ef` 10.0.14 from `dotnet-tools.json`.
@@ -26,6 +46,12 @@ Dependencies point one way: Controllers → `ICustomerService` → `ICustomerRep
 - Start SQL Server: `docker compose up -d sqlserver` (or `podman compose up -d sqlserver`).
 - Settings: `ConnectionStrings__CustomerDb` (default in `appsettings.json` points at `localhost,1433` with the dev SA password) and `Database__ApplyMigrationsOnStartup` (`false` by default; Compose sets `true`). `MSSQL_SA_PASSWORD` overrides the dev password in Compose via a gitignored `.env`.
 - Apple Silicon: SQL Server is x86-only and segfaults under QEMU. The Podman machine MUST have Rosetta on (`[machine] rosetta = true` in `~/.config/containers/containers.conf`) and at least 4 GiB of memory.
+
+Web app:
+
+- Node 24 and npm. Run `cd apps/web && npm ci` once.
+- `API_BASE_URL` (required, read at request time, never at build time): the API's base URL, for example `http://localhost:8080`. The app throws a clear error on the first API call if it's unset.
+- `apps/web/AGENTS.md` says this Next.js has breaking changes: read the matching guide in `apps/web/node_modules/next/dist/docs/` before changing Next.js APIs.
 
 Full walkthrough: the `dev-setup` skill.
 
@@ -38,7 +64,18 @@ dotnet test apps/api/tests/CustomerService.IntegrationTests                     
 INTEGRATION_TEST_DB=sqlite dotnet test apps/api/tests/CustomerService.IntegrationTests   # no container runtime needed
 cd apps/api/tests/CustomerService.UnitTests && dotnet stryker                     # mutation tests; never from apps/api (see the `mutation` skill)
 dotnet run --project apps/api/src/CustomerService.Api                             # needs SQL Server and a migrated DB
-docker compose up --build                                                # full stack on http://localhost:8080
+docker compose up --build                                                # API on http://localhost:8080, web UI on http://localhost:3000
+```
+
+Web app, from `apps/web`:
+
+```bash
+npm run lint                                  # ESLint (next core-web-vitals + TypeScript)
+npm run typecheck                             # tsc --noEmit
+npm test                                      # Jest + React Testing Library
+npm run test:coverage                         # fails below 80% lines, branches, functions and statements
+npm run build                                 # production build, output: "standalone"
+API_BASE_URL=http://localhost:8080 npm run dev     # http://localhost:3000; needs the API running
 ```
 
 With Podman, export `DOCKER_HOST="unix://$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}')"` before the Testcontainers run, and pass `--force-recreate` to `podman compose up` after a rebuild or the old container keeps running.
@@ -55,6 +92,16 @@ With Podman, export `DOCKER_HOST="unix://$(podman machine inspect --format '{{.C
 - **Health endpoints:** `/health/live` runs no checks (liveness); `/health/ready` runs checks tagged `ready` (readiness). Tag any new dependency check `ready`; never add one to liveness, or an outage restarts every pod.
 - **Start-up failures exit with code 1.** `Program.cs` catches and logs them because, as PID 1 in a container, an unhandled exception hangs the process instead of ending it. Keep new start-up work inside that `try`.
 - **Tests:** name them `Method_Condition_Expected`. Unit tests use `MockBehavior.Strict`. Repository tests run on SQLite in-memory, not the EF in-memory provider.
+
+Web app:
+
+- **All HTTP goes through `src/lib/api`.** Components, pages and actions never call `fetch` or read `API_BASE_URL`. Every module there imports `server-only`, so a client component importing it fails the build.
+- **Mutations are server actions** in `src/app/customers/actions.ts`. Call `revalidatePath` and `redirect` outside the `try/catch`: `redirect` throws, and a catch would swallow it.
+- **The API is the only source of validation rules.** The web app shows the API's field errors (a 400's `errors`, keys lower-camel-cased) and never re-implements them. A 400 whose keys match no field, and every other non-409 failure, becomes the form-level error; a 5xx or network failure shows a generic message, never internal detail. A 409 becomes an email field error.
+- **Form state shape:** `CustomerFormState` = `{ fieldErrors: Record<string, string[]>, formError: string | null, values }`. Actions return it with the submitted `values` echoed back so the form keeps what the user typed.
+- **Pages that read the API set `export const dynamic = "force-dynamic"`**, and `apiFetch` sends `cache: "no-store"`. Never cache customer data.
+- **Delete keeps `search` and `page`** when it returns to the list; the redirect target must start with `/customers`.
+- **Tests** are Jest + RTL in `src/__tests__`. `server-only` is mapped to an empty module in `jest.config.ts`. Mock `@/lib/api/customers`, `next/navigation` and `next/cache`; mock `fetch` only in `api.test.ts`. Coverage gate is 80% on all four metrics.
 
 ## Database changes
 
@@ -75,11 +122,14 @@ Never edit a migration that has been applied outside your machine; add a new one
 - **New or changed endpoint:** contract in `Contracts/` → service method on `ICustomerService` + `CustomerManager` → repository method if new data access → controller action → unit tests per layer → integration test in `CustomersApiTests`. Use the `endpoint` skill.
 - **New or changed column/entity:** `Domain/` → `CustomerDbContext.OnModelCreating` → `dotnet ef migrations add` → contracts and mapping in `CustomerManager.ToResponse` → tests. Use the `migration` skill.
 
+- **New or changed page or form (web):** API layer if the data is new → server action → component → page → tests → `npm run lint && npm run typecheck && npm run test:coverage && npm run build`. Use the `ui-page` skill.
+- **New or changed API call (web):** type in `types.ts` → function in `customers.ts` → test in `src/__tests__/api.test.ts` with `fetch` mocked. Use the `web-api-layer` skill. If the API contract changed too, do the `endpoint` skill first.
+
 Verify every change with `sh .claude/pre-pr-checks`.
 
 ## CI/CD
 
-There's no CI pipeline and no git remote yet. `.claude/pre-pr-checks` is the only gate: build, unmigrated-model check, unit tests with the 80% coverage gate, integration tests on SQLite, and `helm lint`/`helm template` for each environment. Run it locally before any PR. Before merging changes to data access, also run the integration tests against SQL Server. Deployment is the Docker image from `Dockerfile`, installed with the Helm chart; there's no automated deploy. See the `ci` and `helm` skills.
+There's no CI pipeline and no git remote yet. `.claude/pre-pr-checks` is the only gate. For the API it runs build, unmigrated-model check, unit tests with the 80% coverage gate and integration tests on SQLite. For the web app it runs, from `apps/web`, `npm ci` (only when `node_modules` is missing), `npm run lint`, `npm run typecheck`, `npm run test:coverage` (80% threshold) and `npm run build`. It then runs `helm lint`/`helm template` for every chart under `apps/*/helm/*` in each environment. Run it locally before any PR. Before merging changes to data access, also run the integration tests against SQL Server. Deployment is the Docker images from `apps/api/Dockerfile` and `apps/web/Dockerfile`, installed with the two Helm charts (API first, then web); there's no automated deploy. A future GitHub Actions workflow needs a Node 24 job beside the .NET one. See the `ci` and `helm` skills.
 
 ## Superpowers (mandatory)
 
