@@ -111,9 +111,23 @@ export async function updateCustomerAction(
   redirect("/customers");
 }
 
-// Only same-app list paths are allowed, so the return path cannot be an open redirect.
+const RETURN_BASE = "http://app.invalid";
+
+// Only paths under /customers in this app are allowed, so the return path can't be an
+// open redirect. Parsing resolves "..", "%2e%2e" and "//host" before the check; a raw
+// prefix test would let "/customers/../x" through.
 function safeReturnPath(returnTo: string | undefined): string {
-  return returnTo && /^\/customers(?:[?/]|$)/.test(returnTo) ? returnTo : "/customers";
+  if (!returnTo?.startsWith("/") || returnTo.includes("\\")) {
+    return "/customers";
+  }
+  let url: URL;
+  try {
+    url = new URL(returnTo, RETURN_BASE);
+  } catch {
+    return "/customers";
+  }
+  const underCustomers = url.pathname === "/customers" || url.pathname.startsWith("/customers/");
+  return url.origin === RETURN_BASE && underCustomers ? url.pathname + url.search : "/customers";
 }
 
 export async function deleteCustomerAction(

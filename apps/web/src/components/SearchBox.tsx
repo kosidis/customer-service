@@ -9,7 +9,7 @@ export function SearchBox({ defaultValue }: { defaultValue?: string }) {
         name="search"
         type="search"
         defaultValue={defaultValue}
-        placeholder="Search by name, email or phone"
+        placeholder="Search by name or email"
         className="w-72 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
       />
       <button type="submit" className="rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-900">

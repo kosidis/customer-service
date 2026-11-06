@@ -6,7 +6,7 @@ Next.js 16 (App Router, React 19, Tailwind CSS) UI for the customer API in `apps
 
 ```bash
 cd apps/web
-npm install
+npm ci
 API_BASE_URL=http://localhost:8080 npm run dev     # http://localhost:3000
 ```
 

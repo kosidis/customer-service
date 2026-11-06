@@ -149,7 +149,18 @@ describe("deleteCustomerAction", () => {
     expect(redirect).toHaveBeenCalledWith("/customers?search=ada&page=2");
   });
 
-  it.each(["https://evil.example", "//evil.example", "/other", "/customersx", "javascript:alert(1)"])(
+  it.each([
+    "https://evil.example",
+    "//evil.example",
+    "/other",
+    "/customersx",
+    "javascript:alert(1)",
+    "/customers/../../other",
+    "/customers/%2e%2e/other",
+    "/customers/..",
+    "/\\evil.example",
+    "/customers\\..\\other",
+  ])(
     "ignores unsafe return path %s",
     async (returnTo) => {
       (deleteCustomer as jest.Mock).mockResolvedValue(undefined);
