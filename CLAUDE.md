@@ -97,10 +97,10 @@ Web app:
 
 - **All HTTP goes through `src/lib/api`.** Components, pages and actions never call `fetch` or read `API_BASE_URL`. Every module there imports `server-only`, so a client component importing it fails the build.
 - **Mutations are server actions** in `src/app/customers/actions.ts`. Call `revalidatePath` and `redirect` outside the `try/catch`: `redirect` throws, and a catch would swallow it.
-- **The API is the only source of validation rules.** The web app shows the API's field errors (a 400's `errors`, keys lower-camel-cased) and never re-implements them. A 400 whose keys match no field, and every other non-409 failure, becomes the form-level error; a 5xx or network failure shows a generic message, never internal detail. A 409 becomes an email field error.
+- **The API is the only source of validation rules.** The web app shows the API's field errors (a 400's `errors`, keys matched case-insensitively onto the form fields listed in `KNOWN_FIELDS` in `apps/web/src/lib/api/http.ts`; add a new field there too) and never re-implements them. A 400 whose keys match no field, and every other non-409 failure, becomes the form-level error; a 5xx or network failure shows a generic message, never internal detail. A 409 becomes an email field error.
 - **Form state shape:** `CustomerFormState` = `{ fieldErrors: Record<string, string[]>, formError: string | null, values }`. Actions return it with the submitted `values` echoed back so the form keeps what the user typed.
 - **Pages that read the API set `export const dynamic = "force-dynamic"`**, and `apiFetch` sends `cache: "no-store"`. Never cache customer data.
-- **Delete keeps `search` and `page`** when it returns to the list; the redirect target must start with `/customers`.
+- **Delete keeps `search` and `page`** when it returns to the list. `safeReturnPath` parses the target and keeps it only if it resolves to `/customers` or a path under `/customers/` on this origin; anything else becomes `/customers`. Never replace that with a prefix test: `/customers/../x` passes one.
 - **Tests** are Jest + RTL in `src/__tests__`. `server-only` is mapped to an empty module in `jest.config.ts`. Mock `@/lib/api/customers`, `next/navigation` and `next/cache`; mock `fetch` only in `api.test.ts`. Coverage gate is 80% on all four metrics.
 
 ## Database changes

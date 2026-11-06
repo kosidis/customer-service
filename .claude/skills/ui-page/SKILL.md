@@ -37,7 +37,7 @@ Order matters: data in, then action, then UI, then tests, then checks. Write eac
 1. Find the layers it touches: the page in `src/app/`, the component in `src/components/`, the action in `src/app/customers/actions.ts`, the API call in `src/lib/api/customers.ts`.
 2. Start with the test that pins the new behaviour; run it and watch it fail.
 3. Change bottom-up (API layer, action, component, page). `npm run typecheck` lists callers after a type change.
-4. Check what moves with it: `Pagination` and `SearchBox` build `/customers?search=...&page=...` URLs, and delete returns to the list keeping `search` and `page` (the redirect target must start with `/customers`). A change to list parameters touches all three, plus `customers/page.tsx`.
+4. Check what moves with it: `Pagination` and `SearchBox` build `/customers?search=...&page=...` URLs, and delete returns to the list keeping `search` and `page` (`safeReturnPath` parses the target and keeps it only if it resolves to `/customers` or a path under `/customers/` on this origin; never replace that with a prefix test). A change to list parameters touches all three, plus `customers/page.tsx`.
 5. Update fixtures (`makeCustomer`) and text assertions, then run the verify step above.
 
 ## Gotchas

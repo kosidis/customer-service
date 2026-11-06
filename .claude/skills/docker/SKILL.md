@@ -34,7 +34,7 @@ podman build -t customer-service-web:local apps/web
 ## Compose (`docker-compose.yml`)
 
 - `sqlserver`: SQL Server 2022, `platform: linux/amd64`, healthcheck via `sqlcmd`, volume `sqlserver-data`. See the `sql-server` skill.
-- `api`: built from the Dockerfile, `depends_on: sqlserver: condition: service_healthy`, `Database__ApplyMigrationsOnStartup=true` so it migrates on start, port `8080`.
+- `api`: built from `./apps/api`, `depends_on: sqlserver: condition: service_healthy`, `Database__ApplyMigrationsOnStartup=true` so it migrates on start, port `8080`.
 - `web`: built from `./apps/web`, `depends_on: api` (waits for the container to start, not for it to be healthy), `API_BASE_URL=http://api:8080` (server-side only; the browser never calls the API), port `3000`. Pages that need the API show an error until the API has finished migrating; reload once `curl http://localhost:8080/health` says `Healthy`.
 - `MSSQL_SA_PASSWORD` and `ASPNETCORE_ENVIRONMENT` come from the shell or a gitignored `.env`, with dev defaults.
 

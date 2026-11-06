@@ -18,7 +18,7 @@ This is the only code in the web app that calls the API. It runs on the server o
 - Reads `API_BASE_URL` on every call, strips trailing slashes, and throws `API_BASE_URL is not set...` if it's empty.
 - Sends `Accept: application/json, application/problem+json`, `Content-Type: application/json` only when there's a body, and `cache: "no-store"`.
 - On a non-2xx response it parses the problem-details body (a body that isn't JSON is tolerated) and throws `ApiError(status, title, detail, fieldErrors)`. `title` falls back to `statusText`, then `"Request failed"`.
-- `fieldErrors` comes from the problem's `errors` object with each key lower-camel-cased (`FirstName` becomes `firstName`), so keys match the form's input names. Entries that aren't arrays are dropped.
+- `fieldErrors` comes from the problem's `errors` object. `normaliseKey` takes the last segment of JSON-path keys (`$.phoneNumber`, `$.customer.EMAIL`) and matches it case-insensitively against `KNOWN_FIELDS` (`firstName`, `lastName`, `email`, `phoneNumber`); keys it can't match are only lower-camel-cased, and the actions turn those into the form-level error. **When you add a form field, add it to `KNOWN_FIELDS`**, or the API's error for it lands in the form-level message instead of under the input. Entries that aren't arrays are dropped.
 - A `204` returns `undefined`.
 - A network failure is a plain `fetch` rejection, not an `ApiError`. Callers tell the two apart with `instanceof ApiError`.
 
