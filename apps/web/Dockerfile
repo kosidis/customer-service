@@ -6,7 +6,7 @@ WORKDIR /app
 # Install from the lockfile alone so the dependency layer is cached until
 # package.json or package-lock.json changes.
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --loglevel verbose --maxsockets=4 --fetch-retries=5 --fetch-retry-mintimeout=2000
 
 FROM node:24-alpine AS build
 WORKDIR /app

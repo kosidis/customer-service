@@ -44,7 +44,7 @@ public class CustomersControllerTests
     [Fact]
     public async Task Create_ReturnsCreatedAtGetById()
     {
-        var request = new CreateCustomerRequest("Jane", "Doe", "jane@example.com", null);
+        var request = new CreateCustomerRequest("Jane", "Doe", "jane@example.com", null, null);
         var customer = BuildResponse();
         _service.Setup(s => s.CreateAsync(request, It.IsAny<CancellationToken>())).ReturnsAsync(customer);
 
@@ -60,7 +60,7 @@ public class CustomersControllerTests
     public async Task Update_ReturnsOkWithUpdatedCustomer()
     {
         var customer = BuildResponse();
-        var request = new UpdateCustomerRequest("Jane", "Doe", "jane@example.com", null);
+        var request = new UpdateCustomerRequest("Jane", "Doe", "jane@example.com", null, null);
         _service.Setup(s => s.UpdateAsync(customer.Id, request, It.IsAny<CancellationToken>())).ReturnsAsync(customer);
 
         var result = await _sut.Update(customer.Id, request, CancellationToken.None);
@@ -82,5 +82,5 @@ public class CustomersControllerTests
     }
 
     private static CustomerResponse BuildResponse() =>
-        new(Guid.NewGuid(), "Jane", "Doe", "jane@example.com", null, DateTime.UtcNow, DateTime.UtcNow);
+        new(Guid.NewGuid(), "Jane", "Doe", "jane@example.com", null, null, DateTime.UtcNow, DateTime.UtcNow);
 }

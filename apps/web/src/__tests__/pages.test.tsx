@@ -81,11 +81,18 @@ describe("pages", () => {
   });
 
   it("pre-fills the edit form", async () => {
-    (getCustomer as jest.Mock).mockResolvedValue(makeCustomer({ phoneNumber: null }));
+    (getCustomer as jest.Mock).mockResolvedValue(makeCustomer({ phoneNumber: null, domain: null }));
     render(await EditCustomerPage({ params: Promise.resolve({ id: "abc" }) }));
     expect(getCustomer).toHaveBeenCalledWith("abc");
     expect(screen.getByLabelText(/email/i)).toHaveValue("ada@example.com");
     expect(screen.getByLabelText(/phone/i)).toHaveValue("");
+    expect(screen.getByLabelText(/domain/i)).toHaveValue("");
+  });
+
+  it("pre-fills the domain on the edit form", async () => {
+    (getCustomer as jest.Mock).mockResolvedValue(makeCustomer());
+    render(await EditCustomerPage({ params: Promise.resolve({ id: "abc" }) }));
+    expect(screen.getByLabelText(/domain/i)).toHaveValue("example.com");
   });
 
   it("calls notFound when the customer does not exist", async () => {

@@ -22,7 +22,7 @@ export class ApiError extends Error {
   }
 }
 
-const KNOWN_FIELDS = ["firstName", "lastName", "email", "phoneNumber"] as const;
+const KNOWN_FIELDS = ["firstName", "lastName", "email", "phoneNumber", "domain"] as const;
 
 function lowerCamel(key: string): string {
   return key.charAt(0).toLowerCase() + key.slice(1);

@@ -6,13 +6,15 @@ public record CreateCustomerRequest(
     [Required, StringLength(100, MinimumLength = 1)] string FirstName,
     [Required, StringLength(100, MinimumLength = 1)] string LastName,
     [Required, EmailAddress, StringLength(256)] string Email,
-    [Phone, StringLength(32)] string? PhoneNumber);
+    [Phone, StringLength(32)] string? PhoneNumber,
+    [StringLength(253)] string? Domain);
 
 public record UpdateCustomerRequest(
     [Required, StringLength(100, MinimumLength = 1)] string FirstName,
     [Required, StringLength(100, MinimumLength = 1)] string LastName,
     [Required, EmailAddress, StringLength(256)] string Email,
-    [Phone, StringLength(32)] string? PhoneNumber);
+    [Phone, StringLength(32)] string? PhoneNumber,
+    [StringLength(253)] string? Domain);
 
 public record CustomerResponse(
     Guid Id,
@@ -20,6 +22,7 @@ public record CustomerResponse(
     string LastName,
     string Email,
     string? PhoneNumber,
+    string? Domain,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
