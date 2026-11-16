@@ -13,7 +13,7 @@ public class AuthManager(
     IUserRepository users,
     IPasswordHasher<User> hasher,
     TimeProvider timeProvider,
-    ILogger<AuthManager>? logger = null) : IAuthService
+    ILogger<AuthManager> logger) : IAuthService
 {
     // Verified when the username is unknown so response time does not reveal whether it exists.
     private static readonly string DummyHash = new PasswordHasher<User>().HashPassword(new User(), "dummy-password");
@@ -34,7 +34,7 @@ public class AuthManager(
 
         if (!verified)
         {
-            logger?.LogInformation("{Event}", "SignInFailed");
+            logger.LogInformation("{Event}", "SignInFailed");
             throw new UnauthorizedException(InvalidCredentials);
         }
 
@@ -55,7 +55,7 @@ public class AuthManager(
         var removed = await users.DeleteSessionAsync(HashToken(token), cancellationToken);
         if (removed)
         {
-            logger?.LogInformation("{Event}", "SignedOut");
+            logger.LogInformation("{Event}", "SignedOut");
         }
     }
 

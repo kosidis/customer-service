@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using CustomerService.Api.Contracts;
 using CustomerService.Api.Data;
 using CustomerService.Api.Domain;
@@ -19,7 +20,7 @@ public class AuthManagerTests
 
     public AuthManagerTests()
     {
-        _sut = new AuthManager(_users.Object, _hasher.Object, _timeProvider);
+        _sut = new AuthManager(_users.Object, _hasher.Object, _timeProvider, NullLogger<AuthManager>.Instance);
     }
 
     [Fact]
