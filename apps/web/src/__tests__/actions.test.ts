@@ -148,6 +148,35 @@ describe("updateCustomerAction", () => {
   });
 });
 
+describe("401 handling", () => {
+  beforeEach(() => {
+    (redirect as unknown as jest.Mock).mockImplementation((path: string) => {
+      throw new Error(`NEXT_REDIRECT:${path}`);
+    });
+  });
+  afterEach(() => {
+    (redirect as unknown as jest.Mock).mockImplementation(() => {
+      throw new Error("NEXT_REDIRECT");
+    });
+  });
+
+  it("createCustomerAction_401_RedirectsToLogin", async () => {
+    (createCustomer as jest.Mock).mockRejectedValue(new ApiError(401, "Unauthorized"));
+    await expect(createCustomerAction(initialFormState, form(filled))).rejects.toThrow("NEXT_REDIRECT:/login");
+  });
+
+  it("updateCustomerAction_401_RedirectsToLogin", async () => {
+    (updateCustomer as jest.Mock).mockRejectedValue(new ApiError(401, "Unauthorized"));
+    await expect(updateCustomerAction("abc", initialFormState, form(filled))).rejects.toThrow("NEXT_REDIRECT:/login");
+  });
+
+  it("deleteCustomerAction_401_RedirectsToLogin", async () => {
+    (deleteCustomer as jest.Mock).mockRejectedValue(new ApiError(401, "Unauthorized"));
+    await expect(deleteCustomerAction("abc")).rejects.toThrow("NEXT_REDIRECT:/login");
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
 describe("deleteCustomerAction", () => {
   it("deletes, revalidates and redirects", async () => {
     (deleteCustomer as jest.Mock).mockResolvedValue(undefined);

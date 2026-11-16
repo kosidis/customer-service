@@ -9,6 +9,8 @@ resources:
     cpu: 500m
     memory: 384Mi
 
+sessionCookieSecure: "true"
+
 # Public entry point. The API itself isn't exposed.
 ingress:
   enabled: true

@@ -1,4 +1,5 @@
 import "server-only";
+import { getSessionToken } from "@/lib/auth/session";
 import type { ValidationProblemDetails } from "./types";
 
 export class ApiError extends Error {
@@ -22,7 +23,17 @@ export class ApiError extends Error {
   }
 }
 
-const KNOWN_FIELDS = ["firstName", "lastName", "email", "phoneNumber", "domain"] as const;
+const KNOWN_FIELDS = [
+  "firstName",
+  "lastName",
+  "email",
+  "phoneNumber",
+  "domain",
+  "currentPassword",
+  "newPassword",
+  "username",
+  "password",
+] as const;
 
 function lowerCamel(key: string): string {
   return key.charAt(0).toLowerCase() + key.slice(1);
@@ -65,14 +76,16 @@ function baseUrl(): string {
 
 export async function apiFetch<T>(
   path: string,
-  init: { method?: string; body?: unknown } = {},
+  init: { method?: string; body?: unknown; authenticated?: boolean } = {},
 ): Promise<T> {
   const url = `${baseUrl()}${path}`;
   const hasBody = init.body !== undefined;
+  const token = init.authenticated === false ? undefined : await getSessionToken();
   const response = await fetch(url, {
     method: init.method ?? "GET",
     headers: {
       Accept: "application/json, application/problem+json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
     },
     body: hasBody ? JSON.stringify(init.body) : undefined,

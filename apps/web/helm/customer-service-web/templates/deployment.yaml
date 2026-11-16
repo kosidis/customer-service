@@ -53,6 +53,9 @@ spec:
             # Read by the server at runtime, never baked into the image.
             - name: API_BASE_URL
               value: {{ .Values.apiBaseUrl | quote }}
+            # The session cookie is Secure only when this is "true".
+            - name: SESSION_COOKIE_SECURE
+              value: {{ .Values.sessionCookieSecure | quote }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

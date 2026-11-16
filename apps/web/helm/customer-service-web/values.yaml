@@ -30,6 +30,10 @@ podLabels: {}
 # (service port 80). Must be an http or https URL.
 apiBaseUrl: http://customer-service
 
+# Sets SESSION_COOKIE_SECURE. The session cookie is Secure only when "true";
+# use "false" only where the site is served over plain http (dev).
+sessionCookieSecure: "true"
+
 # Extra container env vars, as Kubernetes EnvVar objects.
 extraEnv: []
 

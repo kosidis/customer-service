@@ -36,6 +36,8 @@ services:
     environment:
       # Server-side only: the browser talks to the web app, which calls the API.
       API_BASE_URL: http://api:8080
+      # Compose serves plain http on localhost:3000; a Secure cookie would never be sent back.
+      SESSION_COOKIE_SECURE: "false"
     ports:
       - "3000:3000"
 

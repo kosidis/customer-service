@@ -38,6 +38,10 @@ function toRequest(values: CustomerFormValues): CreateCustomerRequest {
   };
 }
 
+function isUnauthorized(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401;
+}
+
 const GENERIC_SAVE_ERROR = "Something went wrong saving the customer. Try again.";
 
 function toFormState(
@@ -88,11 +92,16 @@ export async function createCustomerAction(
   formData: FormData,
 ): Promise<CustomerFormState> {
   const values = readValues(formData);
+  let redirectToLogin = false;
+  let failure: CustomerFormState | null = null;
   try {
     await createCustomer(toRequest(values));
   } catch (error) {
-    return toFormState(error, values);
+    if (isUnauthorized(error)) redirectToLogin = true;
+    else failure = toFormState(error, values);
   }
+  if (redirectToLogin) redirect("/login");
+  if (failure) return failure;
   revalidatePath("/customers");
   redirect("/customers");
 }
@@ -103,13 +112,21 @@ export async function updateCustomerAction(
   formData: FormData,
 ): Promise<CustomerFormState> {
   const values = readValues(formData);
+  let redirectToLogin = false;
+  let failure: CustomerFormState | null = null;
   try {
     await updateCustomer(id, toRequest(values));
   } catch (error) {
-    return toFormState(error, values, {
-      notFoundMessage: "This customer no longer exists.",
-    });
+    if (isUnauthorized(error)) {
+      redirectToLogin = true;
+    } else {
+      failure = toFormState(error, values, {
+        notFoundMessage: "This customer no longer exists.",
+      });
+    }
   }
+  if (redirectToLogin) redirect("/login");
+  if (failure) return failure;
   revalidatePath("/customers");
   redirect("/customers");
 }
@@ -137,14 +154,21 @@ export async function deleteCustomerAction(
   id: string,
   returnTo?: string,
 ): Promise<{ error: string } | undefined> {
+  let redirectToLogin = false;
+  let failure: { error: string } | undefined;
   try {
     await deleteCustomer(id);
   } catch (error) {
-    // Already gone: treat as success so the list refreshes.
-    if (!(error instanceof ApiError && error.status === 404)) {
-      return { error: "Could not delete the customer. Please try again." };
+    if (isUnauthorized(error)) {
+      redirectToLogin = true;
+    } else if (!(error instanceof ApiError && error.status === 404)) {
+      // A 404 means already gone: treat as success so the list refreshes.
+      failure = { error: "Could not delete the customer. Please try again." };
     }
   }
+  // redirect() throws, so it runs after the try/catch.
+  if (redirectToLogin) redirect("/login");
+  if (failure) return failure;
   revalidatePath("/customers");
   redirect(safeReturnPath(returnTo));
 }

@@ -51,6 +51,7 @@ Web app:
 
 - Node 24 and npm. Run `cd apps/web && npm ci` once.
 - `API_BASE_URL` (required, read at request time, never at build time): the API's base URL, for example `http://localhost:8080`. The app throws a clear error on the first API call if it's unset.
+- `SESSION_COOKIE_SECURE` (optional): the session cookie is `Secure` only when it equals `true`. Set `false` for plain-http local runs; Compose and `values-dev.yaml` already do, and the Helm default is `"true"`.
 - `apps/web/AGENTS.md` says this Next.js has breaking changes: read the matching guide in `apps/web/node_modules/next/dist/docs/` before changing Next.js APIs.
 
 Full walkthrough: the `dev-setup` skill.
