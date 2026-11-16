@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/http";
-import type { CurrentUser } from "@/lib/api/types";
+import type { CurrentUser, Role } from "@/lib/api/types";
 
 export const SESSION_COOKIE = "session";
 
@@ -45,11 +45,13 @@ export const fetchCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
 export async function requireUser(opts?: {
   allowPendingChange?: boolean;
+  role?: Role;
 }): Promise<CurrentUser> {
   const user = await fetchCurrentUser();
   if (!user) redirect("/login");
   if (user.mustChangePassword && !opts?.allowPendingChange) {
     redirect("/account/password");
   }
+  if (opts?.role && user.role !== opts.role) redirect("/customers");
   return user;
 }

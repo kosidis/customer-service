@@ -70,6 +70,22 @@ describe("requireUser", () => {
     getCurrentUserMock.mockResolvedValue(user);
     await expect(requireUser()).resolves.toEqual(user);
   });
+
+  it("requireUser_ViewerNeedsAdmin_RedirectsToCustomers", async () => {
+    getCurrentUserMock.mockResolvedValue({ ...user, role: "Viewer" });
+    await expect(requireUser({ role: "Admin" })).rejects.toThrow("NEXT_REDIRECT:/customers");
+  });
+
+  it("requireUser_AdminNeedsAdmin_ReturnsUser", async () => {
+    getCurrentUserMock.mockResolvedValue(user);
+    await expect(requireUser({ role: "Admin" })).resolves.toEqual(user);
+  });
+
+  it("requireUser_NoRoleOption_AllowsViewer", async () => {
+    const viewer = { ...user, role: "Viewer" };
+    getCurrentUserMock.mockResolvedValue(viewer);
+    await expect(requireUser()).resolves.toEqual(viewer);
+  });
 });
 
 describe("session cookie", () => {

@@ -7,7 +7,7 @@ import { updateCustomerAction } from "../../actions";
 export const dynamic = "force-dynamic";
 
 export default async function EditCustomerPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireUser();
+  await requireUser({ role: "Admin" });
   const { id } = await params;
   const customer = await getCustomer(id);
   if (!customer) {

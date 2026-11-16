@@ -87,6 +87,7 @@ describe("CustomerTable", () => {
   it("renders rows with edit links and delete buttons", () => {
     render(
       <CustomerTable
+        canWrite
         customers={[
           makeCustomer(),
           makeCustomer({ id: "22222222-2222-2222-2222-222222222222", firstName: "Alan", lastName: "Turing", email: "alan@x.io", phoneNumber: null, domain: null }),
@@ -105,6 +106,21 @@ describe("CustomerTable", () => {
       "/customers/11111111-1111-1111-1111-111111111111/edit",
     );
     expect(screen.getByRole("button", { name: "Delete Alan Turing" })).toBeInTheDocument();
+  });
+
+  it("CustomerTable_CanWriteFalse_HidesEditDeleteAndActionsHeader", () => {
+    render(<CustomerTable customers={[makeCustomer()]} />);
+    expect(screen.queryByRole("columnheader", { name: "Actions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Edit/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Delete/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader")).toHaveLength(5);
+  });
+
+  it("CustomerTable_CanWriteTrue_ShowsEditAndDelete", () => {
+    render(<CustomerTable canWrite customers={[makeCustomer()]} />);
+    expect(screen.getByRole("columnheader", { name: "Actions" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Edit Ada Lovelace" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Ada Lovelace" })).toBeInTheDocument();
   });
 
   it("wraps a long unbreakable domain, clamps it to three lines and keeps the full value in a tooltip", () => {
@@ -126,7 +142,7 @@ describe("CustomerTable", () => {
   });
 
   it("pins the actions column to the right edge so Edit and Delete stay visible", () => {
-    render(<CustomerTable customers={[makeCustomer()]} />);
+    render(<CustomerTable canWrite customers={[makeCustomer()]} />);
     const actionsCell = screen.getByRole("link", { name: "Edit Ada Lovelace" }).closest("td");
     expect(actionsCell).toHaveClass("sticky", "right-0", "whitespace-nowrap");
     const actionsHeader = screen.getByRole("columnheader", { name: "Actions" });

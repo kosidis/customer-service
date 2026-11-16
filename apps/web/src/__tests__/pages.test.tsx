@@ -52,6 +52,35 @@ describe("pages", () => {
     expect(getCustomer).not.toHaveBeenCalled();
   });
 
+  it("CustomersPage_Viewer_HidesAddLink", async () => {
+    (requireUser as jest.Mock).mockResolvedValue({ username: "v", role: "Viewer", mustChangePassword: false });
+    list.mockResolvedValue({ items: [makeCustomer()], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 });
+    render(await CustomersPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.queryByRole("link", { name: "Add customer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Edit/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Delete/ })).not.toBeInTheDocument();
+  });
+
+  it("CustomersPage_Admin_ShowsAddLink", async () => {
+    list.mockResolvedValue({ items: [makeCustomer()], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 });
+    render(await CustomersPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByRole("link", { name: "Add customer" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Edit/ })).toBeInTheDocument();
+  });
+
+  it("NewCustomerPage_RequiresAdmin", async () => {
+    (requireUser as jest.Mock).mockRejectedValue(new Error("NEXT_REDIRECT:/customers"));
+    await expect(NewCustomerPage()).rejects.toThrow("NEXT_REDIRECT:/customers");
+    expect(requireUser).toHaveBeenCalledWith({ role: "Admin" });
+  });
+
+  it("EditCustomerPage_RequiresAdmin", async () => {
+    (requireUser as jest.Mock).mockRejectedValue(new Error("NEXT_REDIRECT:/customers"));
+    await expect(EditCustomerPage({ params: Promise.resolve({ id: "a" }) })).rejects.toThrow("NEXT_REDIRECT:/customers");
+    expect(requireUser).toHaveBeenCalledWith({ role: "Admin" });
+    expect(getCustomer).not.toHaveBeenCalled();
+  });
+
   it("root redirects to /customers", () => {
     Home();
     expect(redirect).toHaveBeenCalledWith("/customers");
