@@ -4,7 +4,12 @@ using System.Net.Http.Json;
 using CustomerService.Api.Contracts;
 using CustomerService.Api.Domain;
 using CustomerService.IntegrationTests.Infrastructure;
+using CustomerService.Api.Data;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace CustomerService.IntegrationTests;
 
@@ -177,6 +182,119 @@ public class AuthApiTests(CustomerApiFactory factory) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
         Assert.Contains(problem!.Errors.Keys, k => k.Equals("currentPassword", StringComparison.OrdinalIgnoreCase));
+    }
+
+    // AUTH-0120, AUTH-0060, AUTH-0070
+
+    [Fact]
+    public async Task ChangePassword_FormerlyPending_CanThenCallCustomerEndpoints()
+    {
+        const string newPassword = "Another-Password-2!";
+        var pending = await SignedInAsync("ada", Role.Viewer, pending: true);
+        Assert.Equal(HttpStatusCode.Forbidden, (await pending.GetAsync("/api/customers")).StatusCode);
+
+        var change = await pending.PostAsJsonAsync("/api/auth/change-password", new ChangePasswordRequest(Password, newPassword));
+        var login = await Anonymous().PostAsJsonAsync("/api/auth/login", new LoginRequest("ada", newPassword));
+        var token = (await login.Content.ReadFromJsonAsync<LoginResponse>(CustomerApiFactory.Json))!.Token;
+        var fresh = Anonymous();
+        fresh.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        Assert.Equal(HttpStatusCode.NoContent, change.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await fresh.GetAsync("/api/customers")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await pending.GetAsync("/api/customers")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Session_CreatedYearsAgo_StillAuthenticates()
+    {
+        var client = await SignedInAsync();
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<CustomerDbContext>();
+            var old = DateTime.UtcNow.AddYears(-5);
+            await db.Sessions.ExecuteUpdateAsync(s => s.SetProperty(x => x.CreatedAtUtc, old));
+        }
+
+        var response = await client.GetAsync("/api/auth/me");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StoredPassword_IsHashNotPlaintext()
+    {
+        const string newPassword = "Another-Password-2!";
+        var client = await SignedInAsync("ada");
+        await client.PostAsJsonAsync("/api/auth/change-password", new ChangePasswordRequest(Password, newPassword));
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<CustomerDbContext>();
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
+        var user = await db.Users.SingleAsync();
+
+        Assert.NotEqual(Password, user.PasswordHash);
+        Assert.NotEqual(newPassword, user.PasswordHash);
+        Assert.DoesNotContain(newPassword, user.PasswordHash);
+        Assert.NotEqual(PasswordVerificationResult.Failed, hasher.VerifyHashedPassword(user, user.PasswordHash, newPassword));
+    }
+
+    [Fact]
+    public async Task Login_And_ChangePassword_NeverLogPasswords()
+    {
+        const string newPassword = "Another-Password-2!";
+        const string wrongPassword = "Wrong-Password-3!";
+        var logs = new CapturingLoggerProvider();
+        using var logged = factory.WithWebHostBuilder(b => b.ConfigureServices(s => s.AddLogging(l => l.AddProvider(logs))));
+        await SignedInAsync("ada");
+        var client = logged.CreateClient();
+        _clients.Add(client);
+
+        var failed = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("ada", wrongPassword));
+        var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("ada", Password));
+        var token = (await login.Content.ReadFromJsonAsync<LoginResponse>(CustomerApiFactory.Json))!.Token;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var change = await client.PostAsJsonAsync("/api/auth/change-password", new ChangePasswordRequest(Password, newPassword));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, failed.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, change.StatusCode);
+        Assert.NotEmpty(logs.Messages);
+        foreach (var password in new[] { Password, newPassword, wrongPassword })
+        {
+            Assert.DoesNotContain(logs.Messages, m => m.Contains(password, StringComparison.Ordinal));
+        }
+    }
+
+    private sealed class CapturingLoggerProvider : ILoggerProvider
+    {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<string> _messages = new();
+
+        public IReadOnlyCollection<string> Messages => _messages;
+
+        public ILogger CreateLogger(string categoryName) => new CapturingLogger(_messages);
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class CapturingLogger(System.Collections.Concurrent.ConcurrentQueue<string> sink) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                var text = formatter(state, exception) + " " + state;
+                if (state is IEnumerable<KeyValuePair<string, object?>> pairs)
+                {
+                    text += " " + string.Join(" ", pairs.Select(p => $"{p.Key}={p.Value}"));
+                }
+
+                sink.Enqueue(text + " " + exception);
+            }
+        }
     }
 
     // Protected customer endpoints
