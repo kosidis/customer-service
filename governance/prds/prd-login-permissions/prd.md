@@ -4,8 +4,8 @@ title: Login and role-based permissions
 owner: Konstantinos Sidiropoulos
 approvers: [kosidis]
 min-approvals: 1
-initiative:
-epics: {}
+initiative: 6
+epics: {Customer Service/AUTH: 7, Customer Service/AUTHZ: 8, Customer Service/USR: 9}
 ---
 
 # Login and role-based permissions

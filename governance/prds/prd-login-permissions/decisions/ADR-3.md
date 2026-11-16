@@ -2,7 +2,7 @@
 id: ADR-3
 prd: prd-login-permissions
 title: Enforce authentication and roles in the API, with optimistic checks in the web app
-status: proposed
+status: accepted
 kind: architecture
 date: 2026-11-16
 deciders: [K.Sidiropoulos]
@@ -12,7 +12,7 @@ supersedes:
 # Enforce authentication and roles in the API, with optimistic checks in the web app
 
 ## Status
-proposed
+accepted
 
 ## Context
 Requirements ask for 401 and 403 responses from the API (`AUTH-0040`, `AUTHZ-0050`, `USR-0050`) and for the web app to redirect and hide controls (`AUTH-0030`, `AUTHZ-0060`, `USR-0060`). The Next.js 16 authentication guide recommends optimistic checks in the request proxy and secure checks next to the data. A layout does not re-render on every navigation, so it can't be the only guard.

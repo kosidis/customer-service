@@ -2,7 +2,7 @@
 id: ADR-1
 prd: prd-login-permissions
 title: Identify signed-in users with database-backed opaque sessions
-status: proposed
+status: accepted
 kind: architecture
 date: 2026-11-16
 deciders: [K.Sidiropoulos]
@@ -12,7 +12,7 @@ supersedes:
 # Identify signed-in users with database-backed opaque sessions
 
 ## Status
-proposed
+accepted
 
 ## Context
 The web app calls the API from the server, and the API must know who the caller is and what role they hold on every customer request. The PRD says a signed-out session must stop granting access at once (`AUTH-0020`), that sessions never expire from inactivity (`AUTH-0060`), and that a user on an initial password is blocked until they change it (`AUTH-0090`, `AUTH-0100`). Both flags change while a session is live, so the API needs current user state on each request.
