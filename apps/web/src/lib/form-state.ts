@@ -25,3 +25,15 @@ export const initialFormState: CustomerFormState = {
   formError: null,
   values: emptyValues,
 };
+
+export interface LoginFormState {
+  fieldErrors: Record<string, string[]>;
+  formError: string | null;
+  values: { username: string };
+}
+
+export const initialLoginFormState: LoginFormState = {
+  fieldErrors: {},
+  formError: null,
+  values: { username: "" },
+};
