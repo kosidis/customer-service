@@ -52,6 +52,32 @@ describe("pages", () => {
     expect(getCustomer).not.toHaveBeenCalled();
   });
 
+  const expectNoPendingAllowance = () => {
+    expect(requireUser).toHaveBeenCalledTimes(1);
+    const opts = (requireUser as jest.Mock).mock.calls[0][0];
+    expect(opts?.allowPendingChange).not.toBe(true);
+  };
+
+  it("CustomersPage_PendingChange_Redirects", async () => {
+    (requireUser as jest.Mock).mockRejectedValue(new Error("NEXT_REDIRECT:/account/password"));
+    await expect(CustomersPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("NEXT_REDIRECT:/account/password");
+    expectNoPendingAllowance();
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it("NewCustomerPage_PendingChange_Redirects", async () => {
+    (requireUser as jest.Mock).mockRejectedValue(new Error("NEXT_REDIRECT:/account/password"));
+    await expect(NewCustomerPage()).rejects.toThrow("NEXT_REDIRECT:/account/password");
+    expectNoPendingAllowance();
+  });
+
+  it("EditCustomerPage_PendingChange_Redirects", async () => {
+    (requireUser as jest.Mock).mockRejectedValue(new Error("NEXT_REDIRECT:/account/password"));
+    await expect(EditCustomerPage({ params: Promise.resolve({ id: "a" }) })).rejects.toThrow("NEXT_REDIRECT:/account/password");
+    expectNoPendingAllowance();
+    expect(getCustomer).not.toHaveBeenCalled();
+  });
+
   it("CustomersPage_Viewer_HidesAddLink", async () => {
     (requireUser as jest.Mock).mockResolvedValue({ username: "v", role: "Viewer", mustChangePassword: false });
     list.mockResolvedValue({ items: [makeCustomer()], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 });
