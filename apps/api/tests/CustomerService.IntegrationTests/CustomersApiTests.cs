@@ -11,9 +11,13 @@ public class CustomersApiTests(CustomerApiFactory factory) : IAsyncLifetime
 {
     private const string BaseUrl = "/api/customers";
 
-    private readonly HttpClient _client = factory.CreateClient();
+    private HttpClient _client = null!;
 
-    public Task InitializeAsync() => factory.ResetDatabaseAsync();
+    public async Task InitializeAsync()
+    {
+        await factory.ResetDatabaseAsync();
+        _client = await factory.CreateSignedInClientAsync();
+    }
 
     public Task DisposeAsync()
     {
