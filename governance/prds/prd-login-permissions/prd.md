@@ -37,7 +37,7 @@ epics: {}
 ### Overview
 The customer service has no login. Anyone who can reach the web app can list, add, edit and delete customers. That is acceptable for a prototype and not for real customer data. Owners need to know who is using the app and to limit destructive actions to trusted people.
 
-This PRD adds sign-in and two roles. Every signed-in user can see customers. Only Admins can edit and delete them. A default Admin account exists from the first start, and Admins create all other accounts on a page in the web app. Accounts and credentials live in the service's own database.
+This PRD adds sign-in and two roles. Every signed-in user can see customers. Only Admins can add, edit and delete them. A default Admin account exists from the first start, and Admins create all other accounts on a page in the web app. Accounts and credentials live in the service's own database.
 
 ### In Scope
 
@@ -46,13 +46,15 @@ This PRD adds sign-in and two roles. Every signed-in user can see customers. Onl
 - A default Admin account created automatically with a standard initial password.
 - A page where Admins create users by entering a username, a password and a role.
 - Storing users and their credentials in the database.
+- Letting a signed-in user change their own password, and urging the default Admin to do so at first login.
 - Blocking unauthenticated access to customer data.
-- Blocking edit and delete for users who are not Admins, in both the web app and the API.
+- Blocking add, edit and delete for users who are not Admins, in both the web app and the API.
 
 ### Out of Scope
 
 - Self-service registration, password reset and email verification.
-- Listing, editing, disabling or deleting users, and changing a password after creation.
+- Listing, editing, disabling or deleting users, and changing another user's password.
+- Username and password rules beyond "not empty".
 - More than two roles, and per-customer or per-field permissions.
 - Audit logging of who changed what.
 - Single sign-on with an external identity provider.
@@ -81,6 +83,7 @@ This PRD adds sign-in and two roles. Every signed-in user can see customers. Onl
 - Users are created by an Admin, never by themselves.
 - The Admin who creates a user chooses that user's username, password and role.
 - The default Admin's initial password is the same standard value in every deployment.
+- "Urged" means a visible prompt the user can dismiss, not a forced change.
 
 ## Requirements
 
@@ -95,6 +98,9 @@ This PRD adds sign-in and two roles. Every signed-in user can see customers. Onl
 | AUTH - 0050 | Customer Service | A failed sign-in must show a generic error that does not reveal whether the account exists. |
 | AUTH - 0060 | Customer Service | A signed-in session must not expire because of inactivity; it ends only when the user signs out. |
 | AUTH - 0070 | Customer Service | Passwords must be stored in the database only as salted hashes and must never be logged. |
+| AUTH - 0080 | Customer Service | A signed-in user must be able to change their own password by entering their current password and a new one. The new password must not be empty or whitespace only. |
+| AUTH - 0090 | Customer Service | After the default Admin signs in while its password is still the initial one, the web app must show a prompt urging a password change, with a link to the change-password page. The user must be able to dismiss it and continue. |
+| AUTH - 0100 | Customer Service | Once the default Admin has changed its password, the prompt must no longer appear on later sign-ins. |
 
 ### Authorisation
 
@@ -104,10 +110,11 @@ This PRD adds sign-in and two roles. Every signed-in user can see customers. Onl
 | AUTHZ - 0020 | Customer Service | Viewers and Admins must be able to list, search and view customers. |
 | AUTHZ - 0030 | Customer Service | Admins must be able to edit customers. |
 | AUTHZ - 0040 | Customer Service | Admins must be able to delete customers. |
-| AUTHZ - 0050 | Customer Service | An edit or delete request from a Viewer must be rejected with a 403 response by the API, and the customer must stay unchanged. |
-| AUTHZ - 0060 | Customer Service | The web app must not show edit or delete controls to Viewers, and must refuse direct visits to the edit page by a Viewer. |
+| AUTHZ - 0050 | Customer Service | An add, edit or delete request from a Viewer must be rejected with a 403 response by the API, and the customer data must stay unchanged. |
+| AUTHZ - 0060 | Customer Service | The web app must not show add, edit or delete controls to Viewers, and must refuse direct visits to the add and edit pages by a Viewer. |
 | AUTHZ - 0070 | Customer Service | On first start against an empty user store, the system must create a default Admin with a standard initial password, without a manual database edit. |
 | AUTHZ - 0080 | Customer Service | Starting the system again must not recreate the default Admin or reset its password. |
+| AUTHZ - 0090 | Customer Service | Admins must be able to add customers. |
 
 ### User management
 
@@ -119,6 +126,7 @@ This PRD adds sign-in and two roles. Every signed-in user can see customers. Onl
 | USR - 0040 | Customer Service | Users and their roles must be stored in the database and must survive a restart. |
 | USR - 0050 | Customer Service | The create-user page and its API endpoint must reject Viewers with a 403 response and unauthenticated requests with a 401 response (redirect to sign-in for the page). |
 | USR - 0060 | Customer Service | The web app must not show the create-user page link to Viewers. |
+| USR - 0070 | Customer Service | Creating a user with an empty or whitespace-only username or password must be rejected with a field error, and no account must be created. No other username or password rules apply. |
 
 ## Success metrics
 
@@ -126,9 +134,8 @@ This PRD adds sign-in and two roles. Every signed-in user can see customers. Onl
 - Viewer write attempts: 100% of edit and delete requests from a Viewer are rejected, covered by automated tests.
 - Admin workflow regression: all existing list, search, add, edit and delete tests still pass for an Admin.
 - User creation: a user created on the page signs in with the chosen role on the first attempt in 100% of automated test runs.
+- Default password prompt: shown on 100% of default Admin sign-ins until the password changes, and on 0% after, covered by automated tests.
 
 ## Open questions
 
-- Is adding a customer open to Viewers, or Admin only? The request names edit and delete only.
-- The default Admin has the same known password everywhere, and this PRD has no way to change a password afterwards. Must the default password be changed before production use, and how (for example an environment setting at first start)?
-- Which username and password rules apply (minimum length, allowed characters, case sensitivity)?
+- None.
