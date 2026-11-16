@@ -4,6 +4,7 @@ export interface Customer {
   lastName: string;
   email: string;
   phoneNumber: string | null;
+  domain: string | null;
   createdAtUtc: string;
   updatedAtUtc: string;
 }
@@ -13,6 +14,7 @@ export interface CreateCustomerRequest {
   lastName: string;
   email: string;
   phoneNumber?: string | null;
+  domain?: string | null;
 }
 
 export type UpdateCustomerRequest = CreateCustomerRequest;

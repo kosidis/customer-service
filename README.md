@@ -20,14 +20,15 @@ A monorepo for managing customers: a REST API and a web UI.
 
 Errors use [RFC 7807 problem details](https://www.rfc-editor.org/rfc/rfc7807). Email addresses are trimmed, stored in lower case and must be unique, so a duplicate returns 409. `pageSize` accepts 1 to 100, and `search` matches first name, last name or email. In the `Development` environment the OpenAPI document is served at `/openapi/v1.json`.
 
-Request body for `POST` and `PUT`:
+`phoneNumber` and `domain` are optional; both are trimmed and stored as null when blank. `domain` is free text of up to 253 characters, is not format-checked and is not searched. Request body for `POST` and `PUT`:
 
 ```json
 {
   "firstName": "Jane",
   "lastName": "Doe",
   "email": "jane.doe@example.com",
-  "phoneNumber": "+44 20 7946 0000"
+  "phoneNumber": "+44 20 7946 0000",
+  "domain": "example.com"
 }
 ```
 

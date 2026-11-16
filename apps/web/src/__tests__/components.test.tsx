@@ -20,7 +20,7 @@ describe("CustomerForm", () => {
   const filledState: CustomerFormState = {
     fieldErrors: {},
     formError: null,
-    values: { firstName: "Ada", lastName: "Lovelace", email: "ada@x.io", phoneNumber: "123" },
+    values: { firstName: "Ada", lastName: "Lovelace", email: "ada@x.io", phoneNumber: "123", domain: "example.com" },
   };
 
   it("pre-fills values and sets HTML constraints", () => {
@@ -36,6 +36,10 @@ describe("CustomerForm", () => {
     expect(phone).toHaveAttribute("type", "tel");
     expect(phone).not.toBeRequired();
     expect(phone).toHaveAttribute("maxlength", "32");
+    const domain = screen.getByLabelText(/domain/i);
+    expect(domain).toHaveValue("example.com");
+    expect(domain).not.toBeRequired();
+    expect(domain).toHaveAttribute("maxlength", "253");
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 
@@ -72,7 +76,7 @@ describe("CustomerForm", () => {
     const button = await screen.findByRole("button", { name: "Saving..." });
     expect(button).toBeDisabled();
     expect(action).toHaveBeenCalledTimes(1);
-    resolve({ fieldErrors: { email: ["Taken"] }, formError: null, values: { firstName: "A", lastName: "B", email: "a@b.co", phoneNumber: "" } });
+    resolve({ fieldErrors: { email: ["Taken"] }, formError: null, values: { firstName: "A", lastName: "B", email: "a@b.co", phoneNumber: "", domain: "" } });
     expect(await screen.findByText("Taken")).toBeInTheDocument();
     expect(screen.getByLabelText(/first name/i)).toHaveValue("A");
     await waitFor(() => expect(screen.getByRole("button", { name: "Create" })).toBeEnabled());
@@ -85,14 +89,15 @@ describe("CustomerTable", () => {
       <CustomerTable
         customers={[
           makeCustomer(),
-          makeCustomer({ id: "22222222-2222-2222-2222-222222222222", firstName: "Alan", lastName: "Turing", email: "alan@x.io", phoneNumber: null }),
+          makeCustomer({ id: "22222222-2222-2222-2222-222222222222", firstName: "Alan", lastName: "Turing", email: "alan@x.io", phoneNumber: null, domain: null }),
         ]}
       />,
     );
     expect(screen.getAllByRole("row")).toHaveLength(3);
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
     expect(screen.getByText("ada@example.com")).toBeInTheDocument();
-    expect(screen.getByText("-")).toBeInTheDocument();
+    expect(screen.getAllByText("-")).toHaveLength(2);
+    expect(screen.getByText("example.com")).toBeInTheDocument();
     expect(screen.getAllByText(/3 Feb 2026/)).toHaveLength(2);
     expect(screen.getAllByText(/3 Feb 2026/)[0]).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Edit Ada Lovelace" })).toHaveAttribute(
@@ -100,6 +105,32 @@ describe("CustomerTable", () => {
       "/customers/11111111-1111-1111-1111-111111111111/edit",
     );
     expect(screen.getByRole("button", { name: "Delete Alan Turing" })).toBeInTheDocument();
+  });
+
+  it("wraps a long unbreakable domain, clamps it to three lines and keeps the full value in a tooltip", () => {
+    const longDomain = "a".repeat(253);
+    render(<CustomerTable customers={[makeCustomer({ domain: longDomain })]} />);
+    const text = screen.getByText(longDomain);
+    expect(text).toHaveAttribute("title", longDomain);
+    expect(text).toHaveClass("line-clamp-3", "break-words", "max-w-[14rem]");
+    expect(text).not.toHaveClass("truncate");
+  });
+
+  it("wraps a long unbreakable email, clamps it to three lines and keeps the full value in a tooltip", () => {
+    const longEmail = `${"a".repeat(240)}@example.com`;
+    render(<CustomerTable customers={[makeCustomer({ email: longEmail })]} />);
+    const text = screen.getByText(longEmail);
+    expect(text).toHaveAttribute("title", longEmail);
+    expect(text).toHaveClass("line-clamp-3", "break-words", "max-w-[14rem]");
+    expect(text).not.toHaveClass("truncate");
+  });
+
+  it("pins the actions column to the right edge so Edit and Delete stay visible", () => {
+    render(<CustomerTable customers={[makeCustomer()]} />);
+    const actionsCell = screen.getByRole("link", { name: "Edit Ada Lovelace" }).closest("td");
+    expect(actionsCell).toHaveClass("sticky", "right-0", "whitespace-nowrap");
+    const actionsHeader = screen.getByRole("columnheader", { name: "Actions" });
+    expect(actionsHeader).toHaveClass("sticky", "right-0");
   });
 
   it("renders an empty state", () => {

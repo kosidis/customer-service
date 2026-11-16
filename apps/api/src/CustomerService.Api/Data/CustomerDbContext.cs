@@ -17,6 +17,7 @@ public class CustomerDbContext(DbContextOptions<CustomerDbContext> options) : Db
             entity.Property(c => c.LastName).HasMaxLength(100).IsRequired();
             entity.Property(c => c.Email).HasMaxLength(256).IsRequired();
             entity.Property(c => c.PhoneNumber).HasMaxLength(32);
+            entity.Property(c => c.Domain).HasMaxLength(253);
             entity.HasIndex(c => c.Email).IsUnique();
 
             // The database stores no kind, so mark values as UTC on read; otherwise JSON drops the "Z".

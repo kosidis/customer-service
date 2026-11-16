@@ -79,7 +79,7 @@ public class CustomerManagerTests
             .Callback<Customer, CancellationToken>((c, _) => saved = c)
             .Returns(Task.CompletedTask);
 
-        var request = new CreateCustomerRequest("  Jane ", " Doe ", " Jane.Doe@Example.com ", " +44 20 7946 0000 ");
+        var request = new CreateCustomerRequest("  Jane ", " Doe ", " Jane.Doe@Example.com ", " +44 20 7946 0000 ", null);
         var result = await _sut.CreateAsync(request, CancellationToken.None);
 
         Assert.NotNull(saved);
@@ -108,9 +108,62 @@ public class CustomerManagerTests
             .Callback<Customer, CancellationToken>((c, _) => saved = c)
             .Returns(Task.CompletedTask);
 
-        await _sut.CreateAsync(new CreateCustomerRequest("Jane", "Doe", "jane@example.com", phone), CancellationToken.None);
+        await _sut.CreateAsync(new CreateCustomerRequest("Jane", "Doe", "jane@example.com", phone, null), CancellationToken.None);
 
         Assert.Null(saved!.PhoneNumber);
+    }
+
+    [Theory]
+    [InlineData("  example.com ", "example.com")]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    [InlineData(null, null)]
+    public async Task CreateAsync_Domain_IsTrimmedOrStoredAsNull(string? domain, string? expected)
+    {
+        Customer? saved = null;
+        _repository
+            .Setup(r => r.EmailExistsAsync(It.IsAny<string>(), null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _repository
+            .Setup(r => r.AddAsync(It.IsAny<Customer>(), It.IsAny<CancellationToken>()))
+            .Callback<Customer, CancellationToken>((c, _) => saved = c)
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.CreateAsync(new CreateCustomerRequest("Jane", "Doe", "jane@example.com", null, domain), CancellationToken.None);
+
+        Assert.Equal(expected, saved!.Domain);
+        Assert.Equal(expected, result.Domain);
+    }
+
+    [Theory]
+    [InlineData("  Example.com ", "Example.com")]
+    [InlineData("   ", null)]
+    public async Task UpdateAsync_Domain_IsTrimmedOrStoredAsNull(string domain, string? expected)
+    {
+        var customer = BuildCustomer();
+        customer.Domain = "old.example.com";
+        _repository.Setup(r => r.GetByIdAsync(customer.Id, It.IsAny<CancellationToken>())).ReturnsAsync(customer);
+        _repository
+            .Setup(r => r.EmailExistsAsync("new@example.com", customer.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _repository.Setup(r => r.UpdateAsync(customer, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var result = await _sut.UpdateAsync(customer.Id, new UpdateCustomerRequest("A", "B", "new@example.com", null, domain), CancellationToken.None);
+
+        Assert.Equal(expected, customer.Domain);
+        Assert.Equal(expected, result.Domain);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_CustomerWithDomain_MapsDomain()
+    {
+        var customer = BuildCustomer();
+        customer.Domain = "example.com";
+        _repository.Setup(r => r.GetByIdAsync(customer.Id, It.IsAny<CancellationToken>())).ReturnsAsync(customer);
+
+        var result = await _sut.GetByIdAsync(customer.Id, CancellationToken.None);
+
+        Assert.Equal("example.com", result.Domain);
     }
 
     [Fact]
@@ -121,7 +174,7 @@ public class CustomerManagerTests
             .ReturnsAsync(true);
 
         await Assert.ThrowsAsync<ConflictException>(() =>
-            _sut.CreateAsync(new CreateCustomerRequest("Jane", "Doe", "JANE@example.com", null), CancellationToken.None));
+            _sut.CreateAsync(new CreateCustomerRequest("Jane", "Doe", "JANE@example.com", null, null), CancellationToken.None));
 
         _repository.Verify(r => r.AddAsync(It.IsAny<Customer>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -139,7 +192,7 @@ public class CustomerManagerTests
 
         var result = await _sut.UpdateAsync(
             customer.Id,
-            new UpdateCustomerRequest(" John ", " Smith ", "New@Example.com", null),
+            new UpdateCustomerRequest(" John ", " Smith ", "New@Example.com", null, null),
             CancellationToken.None);
 
         Assert.Equal("John", result.FirstName);
@@ -158,7 +211,7 @@ public class CustomerManagerTests
         _repository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((Customer?)null);
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            _sut.UpdateAsync(id, new UpdateCustomerRequest("A", "B", "a@example.com", null), CancellationToken.None));
+            _sut.UpdateAsync(id, new UpdateCustomerRequest("A", "B", "a@example.com", null, null), CancellationToken.None));
     }
 
     [Fact]
@@ -171,7 +224,7 @@ public class CustomerManagerTests
             .ReturnsAsync(true);
 
         await Assert.ThrowsAsync<ConflictException>(() =>
-            _sut.UpdateAsync(customer.Id, new UpdateCustomerRequest("A", "B", "taken@example.com", null), CancellationToken.None));
+            _sut.UpdateAsync(customer.Id, new UpdateCustomerRequest("A", "B", "taken@example.com", null, null), CancellationToken.None));
 
         _repository.Verify(r => r.UpdateAsync(It.IsAny<Customer>(), It.IsAny<CancellationToken>()), Times.Never);
     }

@@ -22,16 +22,19 @@ function readValues(formData: FormData): CustomerFormValues {
     lastName: text(formData, "lastName"),
     email: text(formData, "email"),
     phoneNumber: text(formData, "phoneNumber"),
+    domain: text(formData, "domain"),
   };
 }
 
 function toRequest(values: CustomerFormValues): CreateCustomerRequest {
   const phone = values.phoneNumber.trim();
+  const domain = values.domain.trim();
   return {
     firstName: values.firstName,
     lastName: values.lastName,
     email: values.email,
     phoneNumber: phone === "" ? null : phone,
+    domain: domain === "" ? null : domain,
   };
 }
 

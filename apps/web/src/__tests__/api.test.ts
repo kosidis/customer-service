@@ -77,6 +77,7 @@ describe("apiFetch", () => {
     respond(400, {
       errors: {
         "$.phoneNumber": ["too long"],
+        "$.Domain": ["bad domain"],
         PHONENUMBER: ["bad"],
         "$.customer.EMAIL": ["bad email"],
         lastname: ["req"],
@@ -86,6 +87,7 @@ describe("apiFetch", () => {
     const error = await caught(apiFetch("/x"));
     expect(error.fieldErrors).toEqual({
       phoneNumber: ["too long", "bad"],
+      domain: ["bad domain"],
       email: ["bad email"],
       lastName: ["req"],
       "$.Unknown": ["x"],
@@ -159,11 +161,11 @@ describe("customers api", () => {
 
   it("creates with POST", async () => {
     respond(201, makeCustomer());
-    await createCustomer({ firstName: "A", lastName: "B", email: "a@b.co", phoneNumber: null });
+    await createCustomer({ firstName: "A", lastName: "B", email: "a@b.co", phoneNumber: null, domain: "example.com" });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("http://api.test:8080/api/customers");
     expect(init.method).toBe("POST");
-    expect(JSON.parse(init.body)).toEqual({ firstName: "A", lastName: "B", email: "a@b.co", phoneNumber: null });
+    expect(JSON.parse(init.body)).toEqual({ firstName: "A", lastName: "B", email: "a@b.co", phoneNumber: null, domain: "example.com" });
   });
 
   it("updates with PUT", async () => {

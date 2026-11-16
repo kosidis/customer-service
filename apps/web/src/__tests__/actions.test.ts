@@ -28,7 +28,7 @@ function form(fields: Record<string, string>): FormData {
   return data;
 }
 
-const filled = { firstName: "Ada", lastName: "Lovelace", email: "ADA@x.io", phoneNumber: "  " };
+const filled = { firstName: "Ada", lastName: "Lovelace", email: "ADA@x.io", phoneNumber: "  ", domain: "  " };
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -41,6 +41,7 @@ describe("createCustomerAction", () => {
       lastName: "Lovelace",
       email: "ADA@x.io",
       phoneNumber: null,
+      domain: null,
     });
     expect(revalidatePath).toHaveBeenCalledWith("/customers");
     expect(redirect).toHaveBeenCalledWith("/customers");
@@ -52,6 +53,18 @@ describe("createCustomerAction", () => {
       createCustomerAction(initialFormState, form({ ...filled, phoneNumber: " 123 " })),
     ).rejects.toThrow();
     expect((createCustomer as jest.Mock).mock.calls[0][0].phoneNumber).toBe("123");
+  });
+
+  it("trims a provided domain and echoes it in values on failure", async () => {
+    (createCustomer as jest.Mock).mockResolvedValue(makeCustomer());
+    await expect(
+      createCustomerAction(initialFormState, form({ ...filled, domain: " example.com " })),
+    ).rejects.toThrow();
+    expect((createCustomer as jest.Mock).mock.calls[0][0].domain).toBe("example.com");
+
+    (createCustomer as jest.Mock).mockRejectedValue(new TypeError("x"));
+    const state = await createCustomerAction(initialFormState, form({ ...filled, domain: " example.com " }));
+    expect(state.values.domain).toBe(" example.com ");
   });
 
   it("returns API field errors and keeps values on 400", async () => {
@@ -109,7 +122,7 @@ describe("createCustomerAction", () => {
   it("treats missing form fields as empty", async () => {
     (createCustomer as jest.Mock).mockRejectedValue(new TypeError("x"));
     const state = await createCustomerAction(initialFormState, new FormData());
-    expect(state.values).toEqual({ firstName: "", lastName: "", email: "", phoneNumber: "" });
+    expect(state.values).toEqual({ firstName: "", lastName: "", email: "", phoneNumber: "", domain: "" });
   });
 });
 

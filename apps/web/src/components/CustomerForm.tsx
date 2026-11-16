@@ -84,6 +84,7 @@ export function CustomerForm({ action, initialState, submitLabel }: Props) {
       <Field name="lastName" label="Last name" required maxLength={100} value={values.lastName} errors={fieldErrors.lastName} autoComplete="family-name" />
       <Field name="email" label="Email" type="email" required maxLength={256} value={values.email} errors={fieldErrors.email} autoComplete="email" />
       <Field name="phoneNumber" label="Phone" type="tel" maxLength={32} value={values.phoneNumber} errors={fieldErrors.phoneNumber} autoComplete="tel" />
+      <Field name="domain" label="Domain" maxLength={253} value={values.domain} errors={fieldErrors.domain} />
       <div className="flex items-center gap-3 pt-2">
         <button
           type="submit"

@@ -3,6 +3,7 @@ export interface CustomerFormValues {
   lastName: string;
   email: string;
   phoneNumber: string;
+  domain: string;
 }
 
 export interface CustomerFormState {
@@ -16,6 +17,7 @@ export const emptyValues: CustomerFormValues = {
   lastName: "",
   email: "",
   phoneNumber: "",
+  domain: "",
 };
 
 export const initialFormState: CustomerFormState = {

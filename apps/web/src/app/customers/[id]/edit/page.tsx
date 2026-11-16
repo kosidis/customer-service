@@ -25,6 +25,7 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
             lastName: customer.lastName,
             email: customer.email,
             phoneNumber: customer.phoneNumber ?? "",
+            domain: customer.domain ?? "",
           },
         }}
         submitLabel="Save changes"

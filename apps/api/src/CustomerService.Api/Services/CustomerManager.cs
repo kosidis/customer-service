@@ -32,7 +32,8 @@ public class CustomerManager(ICustomerRepository repository, TimeProvider timePr
             FirstName = request.FirstName.Trim(),
             LastName = request.LastName.Trim(),
             Email = email,
-            PhoneNumber = NormalisePhone(request.PhoneNumber),
+            PhoneNumber = NormaliseOptional(request.PhoneNumber),
+            Domain = NormaliseOptional(request.Domain),
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
@@ -50,7 +51,8 @@ public class CustomerManager(ICustomerRepository repository, TimeProvider timePr
         customer.FirstName = request.FirstName.Trim();
         customer.LastName = request.LastName.Trim();
         customer.Email = email;
-        customer.PhoneNumber = NormalisePhone(request.PhoneNumber);
+        customer.PhoneNumber = NormaliseOptional(request.PhoneNumber);
+        customer.Domain = NormaliseOptional(request.Domain);
         customer.UpdatedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
 
         await repository.UpdateAsync(customer, cancellationToken);
@@ -77,8 +79,8 @@ public class CustomerManager(ICustomerRepository repository, TimeProvider timePr
 
     private static string NormaliseEmail(string email) => email.Trim().ToLowerInvariant();
 
-    private static string? NormalisePhone(string? phone) =>
-        string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+    private static string? NormaliseOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static CustomerResponse ToResponse(Customer customer) => new(
         customer.Id,
@@ -86,6 +88,7 @@ public class CustomerManager(ICustomerRepository repository, TimeProvider timePr
         customer.LastName,
         customer.Email,
         customer.PhoneNumber,
+        customer.Domain,
         customer.CreatedAtUtc,
         customer.UpdatedAtUtc);
 }

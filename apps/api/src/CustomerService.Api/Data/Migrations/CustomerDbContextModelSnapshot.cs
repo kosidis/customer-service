@@ -31,6 +31,10 @@ namespace CustomerService.Api.Data.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Domain")
+                        .HasMaxLength(253)
+                        .HasColumnType("nvarchar(253)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)

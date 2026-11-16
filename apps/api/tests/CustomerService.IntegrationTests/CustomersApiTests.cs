@@ -27,7 +27,7 @@ public class CustomersApiTests(CustomerApiFactory factory) : IAsyncLifetime
     public async Task Create_ValidRequest_Returns201WithLocationAndBody()
     {
         var response = await _client.PostAsJsonAsync(BaseUrl,
-            new CreateCustomerRequest(" Jane ", "Doe", "Jane.Doe@Example.com", "+44 20 7946 0000"));
+            new CreateCustomerRequest(" Jane ", "Doe", "Jane.Doe@Example.com", "+44 20 7946 0000", null));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var customer = await response.Content.ReadFromJsonAsync<CustomerResponse>();
@@ -37,6 +37,31 @@ public class CustomersApiTests(CustomerApiFactory factory) : IAsyncLifetime
         Assert.Equal("jane.doe@example.com", customer.Email);
         Assert.Equal("+44 20 7946 0000", customer.PhoneNumber);
         Assert.EndsWith($"{BaseUrl}/{customer.Id}", response.Headers.Location!.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Create_WithDomain_RoundTripsThroughGet()
+    {
+        var response = await _client.PostAsJsonAsync(BaseUrl,
+            new CreateCustomerRequest("Jane", "Doe", "jane@example.com", null, " example.com "));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var created = await response.Content.ReadFromJsonAsync<CustomerResponse>();
+
+        var fetched = await _client.GetFromJsonAsync<CustomerResponse>($"{BaseUrl}/{created!.Id}");
+
+        Assert.Equal("example.com", created.Domain);
+        Assert.Equal("example.com", fetched!.Domain);
+    }
+
+    [Fact]
+    public async Task Create_DomainTooLong_Returns400()
+    {
+        var response = await _client.PostAsJsonAsync(BaseUrl,
+            new CreateCustomerRequest("Jane", "Doe", "jane@example.com", null, new string('a', 254)));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+        Assert.Contains(problem!.Errors.Keys, key => key.Equals("Domain", StringComparison.OrdinalIgnoreCase));
     }
 
     [Theory]
@@ -56,7 +81,7 @@ public class CustomersApiTests(CustomerApiFactory factory) : IAsyncLifetime
         await CreateCustomerAsync("Jane", "Doe", "jane@example.com");
 
         var response = await _client.PostAsJsonAsync(BaseUrl,
-            new CreateCustomerRequest("Janet", "Doe", "JANE@example.com", null));
+            new CreateCustomerRequest("Janet", "Doe", "JANE@example.com", null, null));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
@@ -164,7 +189,7 @@ public class CustomersApiTests(CustomerApiFactory factory) : IAsyncLifetime
         var created = await CreateCustomerAsync("Jane", "Doe", "jane@example.com");
 
         var response = await _client.PutAsJsonAsync($"{BaseUrl}/{created.Id}",
-            new UpdateCustomerRequest("Janet", "Smith", "janet@example.com", "+1 555 0100"));
+            new UpdateCustomerRequest("Janet", "Smith", "janet@example.com", "+1 555 0100", null));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var updated = await response.Content.ReadFromJsonAsync<CustomerResponse>();
@@ -183,7 +208,7 @@ public class CustomersApiTests(CustomerApiFactory factory) : IAsyncLifetime
         var created = await CreateCustomerAsync("Jane", "Doe", "jane@example.com");
 
         var response = await _client.PutAsJsonAsync($"{BaseUrl}/{created.Id}",
-            new UpdateCustomerRequest("Jane", "Smith", "jane@example.com", null));
+            new UpdateCustomerRequest("Jane", "Smith", "jane@example.com", null, null));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -194,7 +219,7 @@ public class CustomersApiTests(CustomerApiFactory factory) : IAsyncLifetime
         var created = await CreateCustomerAsync("Jane", "Doe", "jane@example.com");
 
         var response = await _client.PutAsJsonAsync($"{BaseUrl}/{created.Id}",
-            new UpdateCustomerRequest("", "Doe", "not-an-email", null));
+            new UpdateCustomerRequest("", "Doe", "not-an-email", null, null));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -203,7 +228,7 @@ public class CustomersApiTests(CustomerApiFactory factory) : IAsyncLifetime
     public async Task Update_MissingCustomer_Returns404()
     {
         var response = await _client.PutAsJsonAsync($"{BaseUrl}/{Guid.NewGuid()}",
-            new UpdateCustomerRequest("Jane", "Doe", "jane@example.com", null));
+            new UpdateCustomerRequest("Jane", "Doe", "jane@example.com", null, null));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -215,7 +240,7 @@ public class CustomersApiTests(CustomerApiFactory factory) : IAsyncLifetime
         var other = await CreateCustomerAsync("John", "Smith", "john@example.com");
 
         var response = await _client.PutAsJsonAsync($"{BaseUrl}/{other.Id}",
-            new UpdateCustomerRequest("John", "Smith", "jane@example.com", null));
+            new UpdateCustomerRequest("John", "Smith", "jane@example.com", null, null));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -275,7 +300,7 @@ public class CustomersApiTests(CustomerApiFactory factory) : IAsyncLifetime
 
     private async Task<CustomerResponse> CreateCustomerAsync(string firstName, string lastName, string email)
     {
-        var response = await _client.PostAsJsonAsync(BaseUrl, new CreateCustomerRequest(firstName, lastName, email, null));
+        var response = await _client.PostAsJsonAsync(BaseUrl, new CreateCustomerRequest(firstName, lastName, email, null, null));
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<CustomerResponse>())!;
     }
