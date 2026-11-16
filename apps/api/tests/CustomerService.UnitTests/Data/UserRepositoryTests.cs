@@ -121,6 +121,32 @@ public sealed class UserRepositoryTests : IDisposable
         await Assert.ThrowsAsync<DbUpdateException>(() => _sut.SaveChangesAsync(CancellationToken.None));
     }
 
+    [Fact]
+    public async Task AnyAsync_NoUsers_ReturnsFalse()
+    {
+        Assert.False(await _sut.AnyAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task AnyAsync_OneUser_ReturnsTrue()
+    {
+        _dbContext.Users.Add(BuildUser("ada", Role.Viewer));
+        await _dbContext.SaveChangesAsync();
+
+        Assert.True(await _sut.AnyAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task AddUserAsync_NewUser_Persists()
+    {
+        await _sut.AddUserAsync(BuildUser("ada", Role.Admin), CancellationToken.None);
+
+        await using var verifyContext = CreateContext();
+        var stored = await verifyContext.Users.SingleAsync();
+        Assert.Equal("ada", stored.Username);
+        Assert.Equal(Role.Admin, stored.Role);
+    }
+
     private static User BuildUser(string username, Role role) => new()
     {
         Username = username,

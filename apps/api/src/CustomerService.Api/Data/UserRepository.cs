@@ -33,5 +33,13 @@ public class UserRepository(CustomerDbContext dbContext) : IUserRepository
         return true;
     }
 
+    public Task<bool> AnyAsync(CancellationToken ct) => dbContext.Users.AnyAsync(ct);
+
+    public async Task AddUserAsync(User user, CancellationToken ct)
+    {
+        await dbContext.Users.AddAsync(user, ct);
+        await dbContext.SaveChangesAsync(ct);
+    }
+
     public Task SaveChangesAsync(CancellationToken ct) => dbContext.SaveChangesAsync(ct);
 }

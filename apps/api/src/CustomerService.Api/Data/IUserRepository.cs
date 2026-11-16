@@ -14,5 +14,9 @@ public interface IUserRepository
 
     Task<bool> DeleteSessionAsync(string tokenHash, CancellationToken ct);
 
+    Task<bool> AnyAsync(CancellationToken ct);
+
+    Task AddUserAsync(User user, CancellationToken ct);
+
     Task SaveChangesAsync(CancellationToken ct);
 }

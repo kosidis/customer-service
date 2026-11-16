@@ -22,6 +22,7 @@ builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<ICustomerService, CustomerManager>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthService, AuthManager>();
+builder.Services.AddScoped<DefaultAdminSeeder>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddSingleton(TimeProvider.System);
 
@@ -47,6 +48,7 @@ try
     if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
     {
         await MigrateDatabaseAsync(app.Services);
+        await SeedDefaultAdminAsync(app.Services);
     }
 
     app.UseExceptionHandler();
@@ -80,6 +82,12 @@ public partial class Program
     private const string ReadinessTag = "ready";
     private const int SqlErrorDatabaseAlreadyExists = 1801;
     private const int MaxMigrationAttempts = 5;
+
+    private static async Task SeedDefaultAdminAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<DefaultAdminSeeder>().SeedAsync(CancellationToken.None);
+    }
 
     private static async Task MigrateDatabaseAsync(IServiceProvider services)
     {
