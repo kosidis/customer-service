@@ -21,6 +21,8 @@ podDisruptionBudget:
 topologySpread:
   enabled: true
 
+sessionCookieSecure: "true"
+
 # Public entry point. The API itself isn't exposed.
 ingress:
   enabled: true
