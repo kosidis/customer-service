@@ -80,6 +80,29 @@ public class SessionAuthenticationHandlerTests
         Assert.Null(principal.FindFirst(PasswordChangedRequirement.ClaimType));
     }
 
+    [Theory]
+    [InlineData("bearer tok")]
+    [InlineData("BEARER tok")]
+    public async Task HandleAuthenticate_SchemeInDifferentCase_Succeeds(string header)
+    {
+        _users.Setup(u => u.FindBySessionAsync(AuthManager.HashToken("tok"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new User { Id = 7, Role = Role.Admin });
+
+        var result = await AuthenticateAsync(header);
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Theory]
+    [InlineData("Bearer tok", "tok")]
+    [InlineData("bearer  tok ", "tok")]
+    [InlineData("Basic tok", "")]
+    [InlineData("Bearer", "")]
+    public void ExtractBearerToken_Header_ReturnsTokenOrEmpty(string header, string expected)
+    {
+        Assert.Equal(expected, SessionAuthenticationHandler.ExtractBearerToken(header));
+    }
+
     [Fact]
     public async Task HandleAuthenticate_PendingUser_AddsMustChangePasswordClaim()
     {

@@ -17,6 +17,12 @@ public class SessionAuthenticationHandler(
 
     private const string BearerPrefix = "Bearer ";
 
+    /// <summary>Returns the token of a "Bearer" header (scheme matched case-insensitively), or an empty string.</summary>
+    public static string ExtractBearerToken(string header) =>
+        header.StartsWith(BearerPrefix, StringComparison.OrdinalIgnoreCase)
+            ? header[BearerPrefix.Length..].Trim()
+            : string.Empty;
+
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         if (!Request.Headers.TryGetValue("Authorization", out var values) || values.Count == 0)
@@ -24,10 +30,7 @@ public class SessionAuthenticationHandler(
             return AuthenticateResult.NoResult();
         }
 
-        var header = values.ToString();
-        var token = header.StartsWith(BearerPrefix, StringComparison.Ordinal)
-            ? header[BearerPrefix.Length..].Trim()
-            : string.Empty;
+        var token = ExtractBearerToken(values.ToString());
         if (token.Length == 0)
         {
             return AuthenticateResult.Fail("Malformed Authorization header.");

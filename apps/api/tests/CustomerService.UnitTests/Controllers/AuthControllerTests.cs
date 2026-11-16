@@ -54,6 +54,18 @@ public class AuthControllerTests
     }
 
     [Fact]
+    public async Task Logout_LowercaseBearerScheme_PassesHeaderToken()
+    {
+        _sut.HttpContext.Request.Headers.Authorization = "bearer the-token";
+        _service.Setup(s => s.LogoutAsync("the-token", It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var result = await _sut.Logout(CancellationToken.None);
+
+        Assert.IsType<NoContentResult>(result);
+        _service.VerifyAll();
+    }
+
+    [Fact]
     public async Task Me_SignedIn_UsesNameIdentifierClaim()
     {
         var response = new CurrentUserResponse("a", Role.Admin, false);

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace CustomerService.IntegrationTests;
 
-// Kubernetes restarts a pod whose liveness probe fails, so liveness must not depend on the
+// The probes stay anonymous: kubelet sends no token. Kubernetes restarts a pod whose liveness probe fails, so liveness must not depend on the
 // database: an outage should take pods out of the Service (readiness), not restart them all.
 public sealed class HealthProbeTests : IClassFixture<HealthProbeTests.UnreachableDatabaseFactory>
 {
