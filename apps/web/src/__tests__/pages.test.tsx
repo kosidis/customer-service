@@ -7,6 +7,7 @@ import CustomersPage from "@/app/customers/page";
 import NewCustomerPage from "@/app/customers/new/page";
 import EditCustomerPage from "@/app/customers/[id]/edit/page";
 import { getCustomer, listCustomers } from "@/lib/api/customers";
+import { requireUser } from "@/lib/auth/session";
 import { makeCustomer } from "./fixtures";
 
 jest.mock("next/navigation", () => ({
@@ -19,6 +20,7 @@ jest.mock("@/lib/api/customers", () => ({
   listCustomers: jest.fn(),
   getCustomer: jest.fn(),
 }));
+jest.mock("@/lib/auth/session", () => ({ requireUser: jest.fn() }));
 jest.mock("@/app/customers/actions", () => ({
   createCustomerAction: jest.fn(),
   updateCustomerAction: jest.fn(),
@@ -27,9 +29,29 @@ jest.mock("@/app/customers/actions", () => ({
 
 const list = listCustomers as jest.Mock;
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  (requireUser as jest.Mock).mockResolvedValue({ username: "ada", role: "Admin", mustChangePassword: false });
+});
 
 describe("pages", () => {
+  it("CustomersPage_Anonymous_Redirects", async () => {
+    (requireUser as jest.Mock).mockRejectedValue(new Error("NEXT_REDIRECT:/login"));
+    await expect(CustomersPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("NEXT_REDIRECT:/login");
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it("NewCustomerPage_Anonymous_Redirects", async () => {
+    (requireUser as jest.Mock).mockRejectedValue(new Error("NEXT_REDIRECT:/login"));
+    await expect(NewCustomerPage()).rejects.toThrow("NEXT_REDIRECT:/login");
+  });
+
+  it("EditCustomerPage_Anonymous_Redirects", async () => {
+    (requireUser as jest.Mock).mockRejectedValue(new Error("NEXT_REDIRECT:/login"));
+    await expect(EditCustomerPage({ params: Promise.resolve({ id: "a" }) })).rejects.toThrow("NEXT_REDIRECT:/login");
+    expect(getCustomer).not.toHaveBeenCalled();
+  });
+
   it("root redirects to /customers", () => {
     Home();
     expect(redirect).toHaveBeenCalledWith("/customers");
@@ -74,8 +96,8 @@ describe("pages", () => {
     expect(list).toHaveBeenLastCalledWith({ page: 1, search: undefined });
   });
 
-  it("renders the new customer form", () => {
-    render(<NewCustomerPage />);
+  it("renders the new customer form", async () => {
+    render(await NewCustomerPage());
     expect(screen.getByRole("heading", { name: "Add customer" })).toBeInTheDocument();
     expect(screen.getByLabelText(/first name/i)).toHaveValue("");
   });

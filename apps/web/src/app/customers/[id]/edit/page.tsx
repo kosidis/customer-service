@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import { CustomerForm } from "@/components/CustomerForm";
 import { getCustomer } from "@/lib/api/customers";
+import { requireUser } from "@/lib/auth/session";
 import { updateCustomerAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditCustomerPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireUser();
   const { id } = await params;
   const customer = await getCustomer(id);
   if (!customer) {

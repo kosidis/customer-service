@@ -51,6 +51,13 @@ describe("changePasswordAction", () => {
     expect(state.formError).toBe("Odd");
   });
 
+  it("changePasswordAction_400CustomerFieldKey_GoesToFormError", async () => {
+    changeMock.mockRejectedValue(new ApiError(400, "Validation", undefined, { email: ["Bad"] }));
+    const state = await changePasswordAction(initialChangePasswordFormState, form(input));
+    expect(state.fieldErrors).toEqual({});
+    expect(state.formError).toBe("Bad");
+  });
+
   it("changePasswordAction_401_RedirectsToLogin", async () => {
     changeMock.mockRejectedValue(new ApiError(401, "Unauthorized"));
     await expect(changePasswordAction(initialChangePasswordFormState, form(input))).rejects.toThrow(

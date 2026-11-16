@@ -4,6 +4,7 @@ import { CustomerTable } from "@/components/CustomerTable";
 import { Pagination, pageHref } from "@/components/Pagination";
 import { SearchBox } from "@/components/SearchBox";
 import { listCustomers } from "@/lib/api/customers";
+import { requireUser } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function CustomersPage({ searchParams }: { searchParams: SearchParams }) {
+  await requireUser();
   const params = await searchParams;
   const search = first(params.search)?.trim() || undefined;
   const parsed = Number.parseInt(first(params.page) ?? "1", 10);

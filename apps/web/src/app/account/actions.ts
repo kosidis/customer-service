@@ -2,8 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { changePassword } from "@/lib/api/auth";
-import { ApiError, isKnownField } from "@/lib/api/http";
+import { ApiError } from "@/lib/api/http";
 import type { ChangePasswordFormState } from "@/lib/form-state";
+
+const PASSWORD_FIELDS = ["currentPassword", "newPassword"];
 
 const GENERIC_ERROR = "Something went wrong changing the password. Try again.";
 
@@ -16,7 +18,7 @@ function badRequestState(error: ApiError): ChangePasswordFormState {
   const fieldErrors: Record<string, string[]> = {};
   const other: string[] = [];
   for (const [key, messages] of Object.entries(error.fieldErrors)) {
-    if (isKnownField(key)) {
+    if (PASSWORD_FIELDS.includes(key)) {
       fieldErrors[key] = messages;
     } else {
       other.push(...messages);
