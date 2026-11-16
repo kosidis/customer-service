@@ -46,7 +46,7 @@ This PRD adds sign-in and two roles. Every signed-in user can see customers. Onl
 - A default Admin account created automatically with a standard initial password.
 - A page where Admins create users by entering a username, a password and a role.
 - Storing users and their credentials in the database.
-- Letting a signed-in user change their own password, and urging the default Admin to do so at first login.
+- Letting a signed-in user change their own password, and forcing the default Admin to do so at first login.
 - Blocking unauthenticated access to customer data.
 - Blocking add, edit and delete for users who are not Admins, in both the web app and the API.
 
@@ -83,7 +83,7 @@ This PRD adds sign-in and two roles. Every signed-in user can see customers. Onl
 - Users are created by an Admin, never by themselves.
 - The Admin who creates a user chooses that user's username, password and role.
 - The default Admin's initial password is the same standard value in every deployment.
-- "Urged" means a visible prompt the user can dismiss, not a forced change.
+- The forced change applies only to the default Admin. Users created on the create-user page keep the password the creating Admin chose.
 
 ## Requirements
 
@@ -99,8 +99,10 @@ This PRD adds sign-in and two roles. Every signed-in user can see customers. Onl
 | AUTH - 0060 | Customer Service | A signed-in session must not expire because of inactivity; it ends only when the user signs out. |
 | AUTH - 0070 | Customer Service | Passwords must be stored in the database only as salted hashes and must never be logged. |
 | AUTH - 0080 | Customer Service | A signed-in user must be able to change their own password by entering their current password and a new one. The new password must not be empty or whitespace only. |
-| AUTH - 0090 | Customer Service | After the default Admin signs in while its password is still the initial one, the web app must show a prompt urging a password change, with a link to the change-password page. The user must be able to dismiss it and continue. |
-| AUTH - 0100 | Customer Service | Once the default Admin has changed its password, the prompt must no longer appear on later sign-ins. |
+| AUTH - 0090 | Customer Service | After the default Admin signs in while its password is still the initial one, the web app must redirect every page except change-password and sign-out to the change-password page until the password is changed. |
+| AUTH - 0100 | Customer Service | While the default Admin's password is still the initial one, every customer and user-management API endpoint must reject its requests with a 403 response. |
+| AUTH - 0110 | Customer Service | The new password for the default Admin must differ from the initial password; a new password equal to it must be rejected with a field error. |
+| AUTH - 0120 | Customer Service | Once the default Admin has changed its password, it must have normal Admin access on later sign-ins, with no redirect. |
 
 ### Authorisation
 
@@ -134,7 +136,7 @@ This PRD adds sign-in and two roles. Every signed-in user can see customers. Onl
 - Viewer write attempts: 100% of edit and delete requests from a Viewer are rejected, covered by automated tests.
 - Admin workflow regression: all existing list, search, add, edit and delete tests still pass for an Admin.
 - User creation: a user created on the page signs in with the chosen role on the first attempt in 100% of automated test runs.
-- Default password prompt: shown on 100% of default Admin sign-ins until the password changes, and on 0% after, covered by automated tests.
+- Forced password change: 100% of default Admin requests to customer pages and APIs are blocked until the password changes, and 0% after, covered by automated tests.
 
 ## Open questions
 
