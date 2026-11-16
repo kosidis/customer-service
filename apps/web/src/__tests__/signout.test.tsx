@@ -2,19 +2,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { redirect } from "next/navigation";
 import { signOutAction } from "@/app/account/signout/actions";
 import RootLayout from "@/app/layout";
-import { getCurrentUser, logout } from "@/lib/api/auth";
+import { logout } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/http";
-import { clearSessionCookie, getSessionToken } from "@/lib/auth/session";
+import { clearSessionCookie, fetchCurrentUser } from "@/lib/auth/session";
 
 jest.mock("next/navigation", () => ({
   redirect: jest.fn((path: string) => {
     throw new Error(`NEXT_REDIRECT:${path}`);
   }),
 }));
-jest.mock("@/lib/api/auth", () => ({ logout: jest.fn(), getCurrentUser: jest.fn() }));
+jest.mock("@/lib/api/auth", () => ({ logout: jest.fn() }));
 jest.mock("@/lib/auth/session", () => ({
   clearSessionCookie: jest.fn(),
-  getSessionToken: jest.fn(),
+  fetchCurrentUser: jest.fn(),
 }));
 
 beforeEach(() => jest.clearAllMocks());
@@ -41,30 +41,23 @@ describe("RootLayout", () => {
   }
 
   it("Layout_SignedIn_ShowsUsernameAndSignOut", async () => {
-    (getSessionToken as jest.Mock).mockResolvedValue("tok");
-    (getCurrentUser as jest.Mock).mockResolvedValue({ username: "ada", role: "Admin", mustChangePassword: false });
+    (fetchCurrentUser as jest.Mock).mockResolvedValue({ username: "ada", role: "Admin", mustChangePassword: false });
     const out = await html();
     expect(out).toContain("ada");
     expect(out).toContain("Sign out");
   });
 
-  it("Layout_NoCookie_ShowsNoUserAndSkipsApi", async () => {
-    (getSessionToken as jest.Mock).mockResolvedValue(undefined);
+  it("Layout_Anonymous_ShowsNoUser", async () => {
+    (fetchCurrentUser as jest.Mock).mockResolvedValue(null);
     const out = await html();
     expect(out).not.toContain("Sign out");
     expect(out).toContain("content");
-    expect(getCurrentUser).not.toHaveBeenCalled();
   });
 
-  it("Layout_Expired401_SwallowedAndShowsNoUser", async () => {
-    (getSessionToken as jest.Mock).mockResolvedValue("stale");
-    (getCurrentUser as jest.Mock).mockRejectedValue(new ApiError(401, "Unauthorized"));
-    expect(await html()).not.toContain("Sign out");
-  });
-
-  it("Layout_ServerError_Propagates", async () => {
-    (getSessionToken as jest.Mock).mockResolvedValue("tok");
-    (getCurrentUser as jest.Mock).mockRejectedValue(new ApiError(500, "Boom"));
-    await expect(html()).rejects.toThrow();
+  it("Layout_ServerError_RendersWithoutUserAndDoesNotThrow", async () => {
+    (fetchCurrentUser as jest.Mock).mockRejectedValue(new ApiError(500, "Boom"));
+    const out = await html();
+    expect(out).toContain("content");
+    expect(out).not.toContain("Sign out");
   });
 });

@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/api/auth";
-import { ApiError } from "@/lib/api/http";
 import type { CurrentUser } from "@/lib/api/types";
-import { getSessionToken } from "@/lib/auth/session";
+import { fetchCurrentUser } from "@/lib/auth/session";
 import { signOutAction } from "./account/signout/actions";
 import "./globals.css";
 
@@ -12,15 +10,14 @@ export const metadata: Metadata = {
   description: "Manage customers: list, search, add, edit and delete.",
 };
 
-// The layout also renders on /login, so it must not redirect: read the cookie, ask the
-// API only when one exists, and treat a 401 as "signed out".
+// The layout also renders on /login, so it must never redirect or throw: an API outage
+// must not make /login and Sign out unreachable. Any failure just hides the user chip.
+// fetchCurrentUser is request-cached, so protected pages don't call the API twice.
 async function currentUserOrNull(): Promise<CurrentUser | null> {
-  if (!(await getSessionToken())) return null;
   try {
-    return await getCurrentUser();
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 401) return null;
-    throw error;
+    return await fetchCurrentUser();
+  } catch {
+    return null;
   }
 }
 

@@ -33,7 +33,7 @@ export async function clearSessionCookie(): Promise<void> {
 
 // cache() keys on argument identity, so only the no-argument fetch is cached;
 // the options are applied outside it. null means "not authenticated".
-const fetchCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+export const fetchCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (!(await getSessionToken())) return null;
   try {
     return await getCurrentUser();
