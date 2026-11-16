@@ -30,7 +30,7 @@ public class AuthApiTests(CustomerApiFactory factory) : IAsyncLifetime
         return client;
     }
 
-    private async Task<HttpClient> SignedInAsync(string username = "viewer", Role role = Role.Admin, bool pending = false)
+    private async Task<HttpClient> SignedInAsync(string username = "admin", Role role = Role.Admin, bool pending = false)
     {
         var client = await factory.CreateSignedInClientAsync(username, role, pending);
         _clients.Add(client);
@@ -144,10 +144,15 @@ public class AuthApiTests(CustomerApiFactory factory) : IAsyncLifetime
     {
         var client = await SignedInAsync();
 
-        await client.PostAsJsonAsync("/api/auth/change-password", new ChangePasswordRequest(Password, "Another-Password-2!"));
+        var change = await client.PostAsJsonAsync("/api/auth/change-password", new ChangePasswordRequest(Password, "Another-Password-2!"));
         var me = await client.GetAsync("/api/auth/me");
+        var oldLogin = await Anonymous().PostAsJsonAsync("/api/auth/login", new LoginRequest("admin", Password));
+        var newLogin = await Anonymous().PostAsJsonAsync("/api/auth/login", new LoginRequest("admin", "Another-Password-2!"));
 
+        Assert.Equal(HttpStatusCode.NoContent, change.StatusCode);
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, oldLogin.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, newLogin.StatusCode);
     }
 
     [Fact]

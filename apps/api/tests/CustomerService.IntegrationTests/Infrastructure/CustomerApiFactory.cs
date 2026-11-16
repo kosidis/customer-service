@@ -85,7 +85,7 @@ public sealed class CustomerApiFactory : WebApplicationFactory<Program>, IAsyncL
     /// the resulting bearer token.
     /// </summary>
     public async Task<HttpClient> CreateSignedInClientAsync(
-        string username = "viewer", Role role = Role.Admin, bool mustChangePassword = false)
+        string username = "admin", Role role = Role.Admin, bool mustChangePassword = false)
     {
         await using (var scope = Services.CreateAsyncScope())
         {
