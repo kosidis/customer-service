@@ -37,3 +37,28 @@ export interface ProblemDetails {
 export interface ValidationProblemDetails extends ProblemDetails {
   errors?: Record<string, string[]>;
 }
+
+export type Role = "Viewer" | "Admin";
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  username: string;
+  role: Role;
+  mustChangePassword: boolean;
+}
+
+export interface CurrentUser {
+  username: string;
+  role: Role;
+  mustChangePassword: boolean;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}

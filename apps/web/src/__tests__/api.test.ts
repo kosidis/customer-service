@@ -6,7 +6,12 @@ import {
   listCustomers,
   updateCustomer,
 } from "@/lib/api/customers";
+import { login, logout, getCurrentUser, changePassword } from "@/lib/api/auth";
+import { getSessionToken } from "@/lib/auth/session";
 import { makeCustomer } from "./fixtures";
+
+jest.mock("@/lib/auth/session", () => ({ getSessionToken: jest.fn() }));
+const getSessionTokenMock = getSessionToken as jest.Mock;
 
 const fetchMock = jest.fn();
 
@@ -33,6 +38,8 @@ async function caught(promise: Promise<unknown>): Promise<ApiError> {
 
 beforeEach(() => {
   fetchMock.mockReset();
+  getSessionTokenMock.mockReset();
+  getSessionTokenMock.mockResolvedValue(undefined);
   global.fetch = fetchMock as unknown as typeof fetch;
   process.env.API_BASE_URL = "http://api.test:8080/";
 });
@@ -180,5 +187,71 @@ describe("customers api", () => {
     respond(204);
     await expect(deleteCustomer("id")).resolves.toBeUndefined();
     expect(fetchMock.mock.calls[0][1].method).toBe("DELETE");
+  });
+});
+
+describe("auth", () => {
+  it("apiFetch_SessionCookiePresent_SendsBearerHeader", async () => {
+    getSessionTokenMock.mockResolvedValue("tok123");
+    respond(200, {});
+    await apiFetch("/api/x");
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer tok123");
+  });
+
+  it("apiFetch_NoCookie_SendsNoAuthorizationHeader", async () => {
+    respond(200, {});
+    await apiFetch("/api/x");
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined();
+  });
+
+  it("login_PostsCredentials", async () => {
+    getSessionTokenMock.mockResolvedValue("stale");
+    const body = { token: "t", username: "bob", role: "Admin", mustChangePassword: false };
+    respond(200, body);
+    await expect(login({ username: "bob", password: "pw" })).resolves.toEqual(body);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://api.test:8080/api/auth/login");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ username: "bob", password: "pw" });
+    expect(init.headers.Authorization).toBeUndefined();
+    expect(getSessionTokenMock).not.toHaveBeenCalled();
+  });
+
+  it("logout_PostsLogout", async () => {
+    respond(204);
+    await expect(logout()).resolves.toBeUndefined();
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://api.test:8080/api/auth/logout");
+    expect(init.method).toBe("POST");
+  });
+
+  it("getCurrentUser_Gets_Me", async () => {
+    const me = { username: "bob", role: "Viewer", mustChangePassword: true };
+    respond(200, me);
+    await expect(getCurrentUser()).resolves.toEqual(me);
+    expect(fetchMock.mock.calls[0][0]).toBe("http://api.test:8080/api/auth/me");
+  });
+
+  it("changePassword_PostsBody", async () => {
+    respond(204);
+    await changePassword({ currentPassword: "a", newPassword: "b" });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://api.test:8080/api/auth/change-password");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ currentPassword: "a", newPassword: "b" });
+  });
+
+  it("normaliseKey_CurrentPassword_MapsToKnownField", async () => {
+    respond(400, {
+      title: "Bad",
+      errors: { CurrentPassword: ["x"], newpassword: ["y"], Username: ["u"], "$.password": ["p"] },
+    });
+    const err = await caught(apiFetch("/x"));
+    expect(err.fieldErrors).toEqual({
+      currentPassword: ["x"],
+      newPassword: ["y"],
+      username: ["u"],
+      password: ["p"],
+    });
   });
 });
