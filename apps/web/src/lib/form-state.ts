@@ -37,3 +37,13 @@ export const initialLoginFormState: LoginFormState = {
   formError: null,
   values: { username: "" },
 };
+
+export interface ChangePasswordFormState {
+  fieldErrors: Record<string, string[]>;
+  formError: string | null;
+}
+
+export const initialChangePasswordFormState: ChangePasswordFormState = {
+  fieldErrors: {},
+  formError: null,
+};
