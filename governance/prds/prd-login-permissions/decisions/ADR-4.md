@@ -2,7 +2,7 @@
 id: ADR-4
 prd: prd-login-permissions
 title: Seed the default Admin at start-up when the user table is empty
-status: proposed
+status: accepted
 kind: architecture
 date: 2026-11-16
 deciders: [K.Sidiropoulos]
@@ -12,7 +12,7 @@ supersedes:
 # Seed the default Admin at start-up when the user table is empty
 
 ## Status
-proposed
+accepted
 
 ## Context
 `AUTHZ-0070` needs a default Admin with a standard initial password on first start, with no manual database edit. `AUTHZ-0080` says a restart must not recreate the account or reset its password. `Program.cs` already runs migrations on start-up inside a `try` block when `Database:ApplyMigrationsOnStartup` is true, and both Compose and the API Helm chart set it.

@@ -7,8 +7,8 @@ architect: Konstantinos Sidiropoulos
 repos: [customer-service]
 satisfies: [AUTH-0010, AUTH-0020, AUTH-0030, AUTH-0040, AUTH-0050, AUTH-0060, AUTH-0070, AUTH-0080, AUTH-0090, AUTH-0100, AUTH-0110, AUTH-0120]
 decisions: [ADR-1, ADR-2, ADR-3]
-story:
-tickets: {}
+story: 10
+tickets: {customer-service: 13}
 estimates: {customer-service: uncalibrated basis=none at=2026-11-16}
 ---
 

@@ -2,7 +2,7 @@
 id: ADR-2
 prd: prd-login-permissions
 title: Hash passwords with the ASP.NET Core PasswordHasher
-status: proposed
+status: accepted
 kind: architecture
 date: 2026-11-16
 deciders: [K.Sidiropoulos]
@@ -12,7 +12,7 @@ supersedes:
 # Hash passwords with the ASP.NET Core PasswordHasher
 
 ## Status
-proposed
+accepted
 
 ## Context
 `AUTH-0070` requires salted hashes in the database and no plain text in logs. The API runs on .NET 10 and has no password code today. Writing hashing code by hand carries a high risk of a subtle flaw.
