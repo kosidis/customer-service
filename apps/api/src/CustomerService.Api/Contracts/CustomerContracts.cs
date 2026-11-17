@@ -3,18 +3,18 @@ using System.ComponentModel.DataAnnotations;
 namespace CustomerService.Api.Contracts;
 
 public record CreateCustomerRequest(
-    [Required, StringLength(100, MinimumLength = 1)] string FirstName,
-    [Required, StringLength(100, MinimumLength = 1)] string LastName,
-    [Required, EmailAddress, StringLength(256)] string Email,
-    [Phone, StringLength(32)] string? PhoneNumber,
-    [StringLength(253)] string? Domain);
+    [Display(Name = "First name"), Required(ErrorMessage = "{0} is required."), StringLength(100, MinimumLength = 1)] string FirstName,
+    [Display(Name = "Last name"), Required(ErrorMessage = "{0} is required."), StringLength(100, MinimumLength = 1)] string LastName,
+    [Display(Name = "Email"), Required(ErrorMessage = "{0} is required."), EmailAddress, StringLength(256)] string Email,
+    [Display(Name = "Phone number"), Phone, StringLength(32)] string? PhoneNumber,
+    [Display(Name = "Domain"), StringLength(253)] string? Domain);
 
 public record UpdateCustomerRequest(
-    [Required, StringLength(100, MinimumLength = 1)] string FirstName,
-    [Required, StringLength(100, MinimumLength = 1)] string LastName,
-    [Required, EmailAddress, StringLength(256)] string Email,
-    [Phone, StringLength(32)] string? PhoneNumber,
-    [StringLength(253)] string? Domain);
+    [Display(Name = "First name"), Required(ErrorMessage = "{0} is required."), StringLength(100, MinimumLength = 1)] string FirstName,
+    [Display(Name = "Last name"), Required(ErrorMessage = "{0} is required."), StringLength(100, MinimumLength = 1)] string LastName,
+    [Display(Name = "Email"), Required(ErrorMessage = "{0} is required."), EmailAddress, StringLength(256)] string Email,
+    [Display(Name = "Phone number"), Phone, StringLength(32)] string? PhoneNumber,
+    [Display(Name = "Domain"), StringLength(253)] string? Domain);
 
 public record CustomerResponse(
     Guid Id,
