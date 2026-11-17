@@ -47,10 +47,18 @@ describe("RootLayout", () => {
     expect(out).toContain("Sign out");
   });
 
+  it("Layout_SignedIn_LinksToChangePassword", async () => {
+    (fetchCurrentUser as jest.Mock).mockResolvedValue({ username: "ada", role: "Viewer", mustChangePassword: false });
+    const out = await html();
+    expect(out).toContain('href="/account/password"');
+    expect(out).toContain("Change password");
+  });
+
   it("Layout_Anonymous_ShowsNoUser", async () => {
     (fetchCurrentUser as jest.Mock).mockResolvedValue(null);
     const out = await html();
     expect(out).not.toContain("Sign out");
+    expect(out).not.toContain("/account/password");
     expect(out).toContain("content");
   });
 

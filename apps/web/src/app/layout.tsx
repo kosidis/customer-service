@@ -34,6 +34,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {user && (
               <div className="ml-auto flex items-center gap-3 text-sm">
                 <span>{user.username}</span>
+                <Link href="/account/password" className="text-slate-600 underline hover:text-slate-900">
+                  Change password
+                </Link>
                 <form action={signOutAction}>
                   <button type="submit" className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-100">
                     Sign out
