@@ -1,0 +1,110 @@
+package com.customerservice.app.data.session
+
+import com.customerservice.app.data.net.ApiFailure
+import com.customerservice.app.data.net.ApiResult
+import com.customerservice.app.data.net.AuthApi
+import com.customerservice.app.data.net.ChangePasswordRequest
+import com.customerservice.app.data.net.LoginRequest
+import com.customerservice.app.data.net.MeResponse
+import com.customerservice.app.data.net.apiCall
+import com.customerservice.app.data.net.apiCallUnit
+import com.customerservice.app.ui.AppState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+
+/**
+ * Owns [AppState]. Every state change runs inside [transition], under one mutex; the private `*Locked`
+ * helpers assume the lock is held and never take it again. A [SessionEvent.Expired] that arrives while
+ * `signIn`, `signOut` or `start` is in flight waits for that call to finish, then applies to the result:
+ * it is ignored if the store holds a token again (a stale 401 must not end a newer session) and is a no-op
+ * when already signed out. Passwords and tokens never enter state, exceptions or logs.
+ */
+class SessionRepository(
+    private val api: AuthApi,
+    private val store: SessionStore,
+    events: SharedFlow<SessionEvent>,
+    scope: CoroutineScope,
+) {
+    private val mutex = Mutex()
+    private val _state = MutableStateFlow<AppState>(AppState.Launching)
+    val state: StateFlow<AppState> = _state.asStateFlow()
+
+    init {
+        scope.launch {
+            events.collect { event ->
+                when (event) {
+                    SessionEvent.Expired -> transition { if (store.awaitToken() == null) _state.value = AppState.SignedOut }
+                }
+            }
+        }
+    }
+
+    suspend fun start() = transition {
+        if (_state.value == AppState.Launching) checkLocked()
+    }
+
+    suspend fun retry() = transition {
+        if (_state.value is AppState.Checking) checkLocked()
+    }
+
+    suspend fun signIn(username: String, password: String): ApiResult<Unit> = transition {
+        when (val result = apiCall { api.login(LoginRequest(username, password)) }) {
+            is ApiResult.Failure -> result
+            is ApiResult.Ok -> {
+                val login = result.value
+                store.save(login.token)
+                _state.value = if (login.mustChangePassword) AppState.PasswordChange else AppState.SignedIn(login.role)
+                ApiResult.Ok(Unit)
+            }
+        }
+    }
+
+    suspend fun signOut() = transition {
+        try {
+            apiCallUnit { api.logout() }
+        } finally {
+            withContext(NonCancellable) {
+                store.clear()
+                _state.value = AppState.SignedOut
+            }
+        }
+    }
+
+    suspend fun changePassword(current: String, new: String): ApiResult<Unit> = transition {
+        val result = apiCallUnit { api.changePassword(ChangePasswordRequest(current, new)) }
+        // The password did change on a 204 even if the follow-up check fails; retry() repeats that check.
+        if (result is ApiResult.Ok) checkLocked()
+        result
+    }
+
+    private suspend fun checkLocked() {
+        val token = store.awaitToken()
+        if (token == null) {
+            _state.value = AppState.SignedOut
+            return
+        }
+        _state.value = AppState.Checking(null)
+        when (val result = apiCall { api.me() }) {
+            is ApiResult.Ok -> _state.value = result.value.toState()
+            is ApiResult.Failure -> if (result.failure == ApiFailure.Unauthorized) {
+                store.clearIf(token)
+                _state.value = AppState.SignedOut
+            } else {
+                _state.value = AppState.Checking(result.failure)
+            }
+        }
+    }
+
+    private fun MeResponse.toState(): AppState =
+        if (mustChangePassword) AppState.PasswordChange else AppState.SignedIn(role)
+
+    private suspend fun <T> transition(block: suspend () -> T): T = mutex.withLock { block() }
+}
