@@ -11,6 +11,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertFalse
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -77,5 +80,42 @@ class SessionStoreTest {
 
         assertNull(s.awaitToken())
         assertNull(store(key).awaitToken())
+    }
+
+    @Test
+    fun awaitToken_corruptFile_returnsNull() = runTest {
+        file.writeBytes(byteArrayOf(-1, -1, -1, -1, 7, 8, 9, 100, 101))
+
+        assertNull(store(newKey()).awaitToken())
+    }
+
+    @Test
+    fun tokenFlow_corruptFile_emitsNull() = runTest {
+        file.writeBytes(byteArrayOf(-1, -1, -1, -1, 7, 8, 9, 100, 101))
+
+        assertNull(store(newKey()).token.first())
+    }
+
+    @Test
+    fun awaitToken_badBase64_returnsNull() = runTest {
+        dataStore.edit {
+            it[stringPreferencesKey("token_iv")] = "!!not base64!!"
+            it[stringPreferencesKey("token_ciphertext")] = "###"
+        }
+
+        assertNull(store(newKey()).awaitToken())
+    }
+
+    @Test
+    fun awaitToken_decryptFailureIsNotCached_recoversWhenKeyReturns() = runTest {
+        val good = newKey()
+        store(good).save("tok")
+        var current = newKey()
+        val s = SessionStore(dataStore, TokenCipher { current })
+
+        assertNull(s.awaitToken())
+        current = good
+
+        assertEquals("tok", s.awaitToken())
     }
 }

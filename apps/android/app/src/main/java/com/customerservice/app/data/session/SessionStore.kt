@@ -4,8 +4,14 @@ import java.util.Base64
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
+import java.io.IOException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -26,18 +32,30 @@ class SessionStore(
     private var loaded = false
     private var cached: String? = null
 
-    val token: Flow<String?> = dataStore.data.map { decode(it) }
+    // An unreadable or corrupt store reads as signed out, never as a crash.
+    private val preferences: Flow<Preferences> = dataStore.data.catch { e ->
+        if (e is IOException) emit(emptyPreferences()) else throw e
+    }
+
+    val token: Flow<String?> = preferences.map { decode(it) }.flowOn(Dispatchers.IO)
 
     suspend fun awaitToken(): String? = mutex.withLock {
         if (!loaded) {
-            cached = decode(dataStore.data.first())
-            loaded = true
+            val prefs = preferences.first()
+            val value = withContext(Dispatchers.IO) { decode(prefs) }
+            // Present-but-undecodable data may be a transient Keystore failure: do not cache it.
+            if (value != null || !hasStored(prefs)) {
+                cached = value
+                loaded = true
+            }
+            value
+        } else {
+            cached
         }
-        cached
     }
 
     suspend fun save(token: String) = mutex.withLock {
-        val encrypted = cipher.encrypt(token)
+        val encrypted = withContext(Dispatchers.IO) { cipher.encrypt(token) }
         dataStore.edit {
             it[IV] = Base64.getEncoder().encodeToString(encrypted.iv)
             it[CIPHER_TEXT] = Base64.getEncoder().encodeToString(encrypted.cipherText)
@@ -54,6 +72,8 @@ class SessionStore(
         cached = null
         loaded = true
     }
+
+    private fun hasStored(prefs: Preferences): Boolean = prefs[IV] != null || prefs[CIPHER_TEXT] != null
 
     private fun decode(prefs: Preferences): String? {
         val iv = prefs[IV] ?: return null

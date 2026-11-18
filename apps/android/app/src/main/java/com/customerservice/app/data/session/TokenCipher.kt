@@ -17,7 +17,14 @@ data class Encrypted(val iv: ByteArray, val cipherText: ByteArray) {
 
 /** AES-256/GCM. The key comes from [keyProvider] so JVM tests can inject one; production uses [androidKeystoreKey]. */
 class TokenCipher(private val keyProvider: () -> SecretKey) {
-    fun encrypt(plain: String): Encrypted {
+    /** Retries once with a fresh key lookup, so a broken key entry the provider can repair does not block sign-in. */
+    fun encrypt(plain: String): Encrypted = try {
+        encryptOnce(plain)
+    } catch (_: Exception) {
+        encryptOnce(plain)
+    }
+
+    private fun encryptOnce(plain: String): Encrypted {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, keyProvider())
         return Encrypted(cipher.iv, cipher.doFinal(plain.toByteArray(Charsets.UTF_8)))
@@ -38,10 +45,19 @@ class TokenCipher(private val keyProvider: () -> SecretKey) {
         private const val KEYSTORE = "AndroidKeyStore"
         private const val KEY_ALIAS = "customer_service_session_key"
 
-        /** Production key provider: a non-exportable AES-256 key in the Android Keystore, created on first use. */
+        /**
+         * Production key provider: a non-exportable AES-256 key in the Android Keystore, created on first use.
+         * A corrupt or unusable entry is deleted and replaced (the old token becomes undecryptable, i.e. signed out).
+         */
         fun androidKeystoreKey(): SecretKey {
             val keyStore = KeyStore.getInstance(KEYSTORE).apply { load(null) }
-            (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
+            val existing = try {
+                keyStore.getKey(KEY_ALIAS, null) as? SecretKey
+            } catch (_: Exception) {
+                keyStore.deleteEntry(KEY_ALIAS)
+                null
+            }
+            existing?.let { return it }
             val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE)
             generator.init(
                 KeyGenParameterSpec.Builder(
