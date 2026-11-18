@@ -42,19 +42,39 @@ fun parseFieldErrors(body: String): Map<String, List<String>> {
         val messages = (value as? JsonArray)
             ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
             .orEmpty()
-        val normalised = key.substringAfterLast('.').lowercase()
+        val normalised = normaliseKey(key)
         result[normalised] = result[normalised].orEmpty() + messages
     }
     return result
 }
 
+/**
+ * Same rule as `normaliseKey` in `apps/web/src/lib/api/http.ts`: split on `.`, `[` and `]`, drop empty and
+ * `$` segments, keep the last one, lower-case it. A key with no usable segment (such as a bare `$`) is kept whole.
+ */
+private fun normaliseKey(key: String): String =
+    key.split('.', '[', ']').filter { it.isNotEmpty() && it != "$" }.lastOrNull().orEmpty()
+        .ifEmpty { key }
+        .lowercase()
+
+/** A successful response with no body is [ApiFailure.Unavailable] here; use [toUnitResult] for empty successes. */
 fun <T> Response<T>.toApiResult(
     parseErrors: (String) -> Map<String, List<String>> = ::parseFieldErrors,
 ): ApiResult<T> {
     if (isSuccessful) {
-        @Suppress("UNCHECKED_CAST")
-        return ApiResult.Ok(body() as T)
+        val value = body() ?: return ApiResult.Failure(ApiFailure.Unavailable)
+        return ApiResult.Ok(value)
     }
+    return failureResult(parseErrors)
+}
+
+/** An empty success (204 or no body) is `Ok(Unit)`. */
+fun Response<Unit>.toUnitResult(
+    parseErrors: (String) -> Map<String, List<String>> = ::parseFieldErrors,
+): ApiResult<Unit> =
+    if (isSuccessful) ApiResult.Ok(Unit) else failureResult(parseErrors)
+
+private fun Response<*>.failureResult(parseErrors: (String) -> Map<String, List<String>>): ApiResult.Failure {
     val failure = when (code()) {
         400 -> ApiFailure.Validation(
             try {
@@ -76,6 +96,14 @@ fun <T> Response<T>.toApiResult(
 inline fun <T> apiCall(block: () -> Response<T>): ApiResult<T> =
     try {
         block().toApiResult()
+    } catch (_: IOException) {
+        ApiResult.Failure(ApiFailure.Unavailable)
+    }
+
+/** [apiCall] for endpoints with no response body (204): an empty success is `Ok(Unit)`. */
+inline fun apiCallUnit(block: () -> Response<Unit>): ApiResult<Unit> =
+    try {
+        block().toUnitResult()
     } catch (_: IOException) {
         ApiResult.Failure(ApiFailure.Unavailable)
     }

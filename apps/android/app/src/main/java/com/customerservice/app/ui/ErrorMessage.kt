@@ -28,5 +28,6 @@ private fun messageFor(failure: ApiFailure): String = when (failure) {
     ApiFailure.Forbidden -> "You do not have permission to do that."
     ApiFailure.NotFound -> "We could not find that."
     ApiFailure.Conflict -> "That conflicts with existing data."
-    is ApiFailure.Validation -> "Check the highlighted fields and try again."
+    is ApiFailure.Validation ->
+        if (failure.fieldErrors.isEmpty()) GENERIC_MESSAGE else "Check the highlighted fields and try again."
 }
