@@ -43,4 +43,26 @@ class SecureWindowScreenTest {
         compose.waitForIdle()
         assertEquals(false, secure())
     }
+
+    @Test
+    fun SecureWindow_overlappingInstances_flagStaysUntilLastLeaves() {
+        var first by mutableStateOf(true)
+        var second by mutableStateOf(false)
+        compose.setContent {
+            if (first) SecureWindow(true)
+            if (second) SecureWindow(true)
+        }
+        compose.waitForIdle()
+        assertEquals(true, secure())
+
+        second = true
+        compose.waitForIdle()
+        first = false
+        compose.waitForIdle()
+        assertEquals(true, secure())
+
+        second = false
+        compose.waitForIdle()
+        assertEquals(false, secure())
+    }
 }

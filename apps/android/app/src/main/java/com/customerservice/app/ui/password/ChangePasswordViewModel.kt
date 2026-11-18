@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.customerservice.app.data.net.ApiFailure
 import com.customerservice.app.data.net.ApiResult
 import com.customerservice.app.data.session.SessionRepository
+import com.customerservice.app.ui.AppState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -21,11 +24,25 @@ data class ChangePasswordUiState(
     val currentPasswordErrors: List<String> = emptyList(),
     val newPasswordErrors: List<String> = emptyList(),
     val failure: ApiFailure? = null,
+    val checking: Boolean = false,
+    val sessionFailure: ApiFailure? = null,
 )
 
 class ChangePasswordViewModel(private val repository: SessionRepository) : ViewModel() {
     private val _state = MutableStateFlow(ChangePasswordUiState())
-    val state: StateFlow<ChangePasswordUiState> = _state.asStateFlow()
+
+    // Session state shows through: after a 204 the follow-up check can be in flight or have failed (Checking).
+    val state: StateFlow<ChangePasswordUiState> = combine(_state, repository.state) { local, session ->
+        if (session is AppState.Checking) {
+            local.copy(checking = session.failure == null, sessionFailure = session.failure)
+        } else {
+            local
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, _state.value)
+
+    fun retry() {
+        viewModelScope.launch { repository.retry() }
+    }
 
     fun onCurrentPasswordChange(value: String) = _state.update { it.copy(currentPassword = value) }
 
