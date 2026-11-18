@@ -21,8 +21,8 @@
     "pr": "",
     "sessionUrl": false
   },
-  "model": "claude-sonnet-5",
+  "model": "sonnet",
   "effortLevel": "medium",
-  "advisorModel": "claude-fable-5",
+  "advisorModel": "opus",
   "outputStyle": "shift-workflow:simple-explanatory"
 }
