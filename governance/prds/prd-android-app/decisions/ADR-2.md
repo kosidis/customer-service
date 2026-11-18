@@ -2,7 +2,7 @@
 id: ADR-2
 prd: prd-android-app
 title: Keep the session token encrypted with an Android Keystore key
-status: proposed
+status: accepted
 kind: architecture
 date: 2026-11-18
 deciders: [K.Sidiropoulos]

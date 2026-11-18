@@ -7,8 +7,8 @@ architect: Konstantinos Sidiropoulos
 repos: [customer-service]
 satisfies: [AUS-0010, AUS-0020, AUS-0030, AUS-0040]
 decisions: [ADR-1]
-story:
-tickets: {}
+story: 34
+tickets: {customer-service: 38}
 estimates: {customer-service: uncalibrated basis=none at=2026-11-18}
 ---
 

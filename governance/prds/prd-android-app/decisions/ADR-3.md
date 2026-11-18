@@ -2,7 +2,7 @@
 id: ADR-3
 prd: prd-android-app
 title: Allow only HTTPS to the API and put TLS in front of it
-status: proposed
+status: accepted
 kind: architecture
 date: 2026-11-18
 deciders: [K.Sidiropoulos]
