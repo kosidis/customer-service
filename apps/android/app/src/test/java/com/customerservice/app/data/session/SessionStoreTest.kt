@@ -118,4 +118,27 @@ class SessionStoreTest {
 
         assertEquals("tok", s.awaitToken())
     }
+
+    @Test
+    fun clearIf_matchingToken_clearsAndReturnsTrue() = runTest {
+        val s = store(newKey())
+        s.save("tok")
+
+        assertEquals(true, s.clearIf("tok"))
+        assertNull(s.awaitToken())
+    }
+
+    @Test
+    fun clearIf_differentToken_keepsTokenAndReturnsFalse() = runTest {
+        val s = store(newKey())
+        s.save("tok-2")
+
+        assertEquals(false, s.clearIf("tok-1"))
+        assertEquals("tok-2", s.awaitToken())
+    }
+
+    @Test
+    fun clearIf_emptyStore_returnsFalse() = runTest {
+        assertEquals(false, store(newKey()).clearIf("tok"))
+    }
 }

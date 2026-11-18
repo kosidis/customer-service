@@ -14,10 +14,16 @@ class UnauthorizedInterceptor(
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val response = chain.proceed(chain.request())
-        if (response.code == 401 && response.request.header("Authorization") != null) {
-            runBlocking { store.clear() }
+        val sent = response.request.header("Authorization")?.removePrefix("Bearer ")
+        if (response.code == 401 && sent != null) {
+            // Clear only the token this request sent, so a stale 401 cannot sign out a newer session.
+            val cleared = try {
+                runBlocking { store.clearIf(sent) }
+            } catch (_: Exception) {
+                true
+            }
             // tryEmit never blocks the network thread; the flow needs buffer capacity so the event is not dropped.
-            events.tryEmit(SessionEvent.Expired)
+            if (cleared) events.tryEmit(SessionEvent.Expired)
         }
         return response
     }

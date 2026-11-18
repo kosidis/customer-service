@@ -39,7 +39,9 @@ class SessionStore(
 
     val token: Flow<String?> = preferences.map { decode(it) }.flowOn(Dispatchers.IO)
 
-    suspend fun awaitToken(): String? = mutex.withLock {
+    suspend fun awaitToken(): String? = mutex.withLock { readLocked() }
+
+    private suspend fun readLocked(): String? =
         if (!loaded) {
             val prefs = preferences.first()
             val value = withContext(Dispatchers.IO) { decode(prefs) }
@@ -52,7 +54,6 @@ class SessionStore(
         } else {
             cached
         }
-    }
 
     suspend fun save(token: String) = mutex.withLock {
         val encrypted = withContext(Dispatchers.IO) { cipher.encrypt(token) }
@@ -71,6 +72,18 @@ class SessionStore(
         }
         cached = null
         loaded = true
+    }
+
+    /** Clears only when the stored token still equals [token]; returns whether it cleared. */
+    suspend fun clearIf(token: String): Boolean = mutex.withLock {
+        if (readLocked() != token) return@withLock false
+        dataStore.edit {
+            it.remove(IV)
+            it.remove(CIPHER_TEXT)
+        }
+        cached = null
+        loaded = true
+        true
     }
 
     private fun hasStored(prefs: Preferences): Boolean = prefs[IV] != null || prefs[CIPHER_TEXT] != null

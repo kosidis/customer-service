@@ -67,6 +67,10 @@ class InterceptorTest {
         client.newCall(Request.Builder().url(server.url(path)).post("{}".toRequestBody()).build()).execute().close()
     }
 
+    private suspend fun getWithHeader(client: OkHttpClient, path: String, auth: String) = withContext(Dispatchers.IO) {
+        client.newCall(Request.Builder().url(server.url(path)).header("Authorization", auth).build()).execute().close()
+    }
+
     @Test
     fun AuthInterceptor_addsBearer_onMe() = runTest {
         store.save("tok-1")
@@ -133,5 +137,63 @@ class InterceptorTest {
             expectNoEvents()
         }
         assertEquals("tok-1", store.awaitToken())
+    }
+
+    @Test
+    fun UnauthorizedInterceptor_401WithoutAuthorizationHeader_doesNotClearOrEmit() = runTest {
+        store.save("tok-1")
+        server.enqueue(MockResponse().setResponseCode(401))
+        val bare = OkHttpClient.Builder().addInterceptor(UnauthorizedInterceptor(store, events)).build()
+
+        events.test {
+            withContext(Dispatchers.IO) { bare.newCall(Request.Builder().url(server.url("/api/auth/me")).build()).execute().close() }
+
+            expectNoEvents()
+        }
+        assertEquals("tok-1", store.awaitToken())
+    }
+
+    @Test
+    fun UnauthorizedInterceptor_staleToken401_leavesNewerSessionAndEmitsNothing() = runTest {
+        store.save("tok-2")
+        server.enqueue(MockResponse().setResponseCode(401))
+        val bare = OkHttpClient.Builder().addInterceptor(UnauthorizedInterceptor(store, events)).build()
+
+        events.test {
+            getWithHeader(bare, "/api/auth/me", "Bearer tok-1")
+
+            expectNoEvents()
+        }
+        assertEquals("tok-2", store.awaitToken())
+    }
+
+    @Test
+    fun UnauthorizedInterceptor_twoSequential401sWithSameToken_emitOnce() = runTest {
+        store.save("tok-1")
+        server.enqueue(MockResponse().setResponseCode(401))
+        server.enqueue(MockResponse().setResponseCode(401))
+        val bare = OkHttpClient.Builder().addInterceptor(UnauthorizedInterceptor(store, events)).build()
+
+        events.test {
+            getWithHeader(bare, "/api/auth/me", "Bearer tok-1")
+            getWithHeader(bare, "/api/auth/me", "Bearer tok-1")
+
+            assertEquals(SessionEvent.Expired, awaitItem())
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun UnauthorizedInterceptor_clearThrows_stillEmitsExpired() = runTest {
+        val failing = io.mockk.mockk<SessionStore>()
+        io.mockk.coEvery { failing.clearIf(any()) } throws IllegalStateException("disk")
+        server.enqueue(MockResponse().setResponseCode(401))
+        val bare = OkHttpClient.Builder().addInterceptor(UnauthorizedInterceptor(failing, events)).build()
+
+        events.test {
+            getWithHeader(bare, "/api/auth/me", "Bearer tok-1")
+
+            assertEquals(SessionEvent.Expired, awaitItem())
+        }
     }
 }
