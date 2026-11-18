@@ -21,6 +21,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -73,4 +75,11 @@ class AppContainer(context: Context, baseUrl: String, debug: Boolean) {
     fun start() {
         if (started.compareAndSet(false, true)) scope.launch { sessionRepository.start() }
     }
+
+    /**
+     * Cancels the container's scope, which releases its DataStore file so another container can open it.
+     * Production never calls this (the container lives as long as the process); the instrumented tests use it
+     * to simulate a restart over the same session file.
+     */
+    suspend fun close() = scope.coroutineContext.job.cancelAndJoin()
 }
