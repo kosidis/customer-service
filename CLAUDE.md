@@ -2,12 +2,13 @@
 
 ## What this is
 
-A monorepo for customer management with two deployables:
+A monorepo for customer management with three deployables:
 
 - `apps/api`: a REST API for customer CRUD on .NET 10, ASP.NET Core controllers and EF Core 10 over SQL Server 2022 (`apps/api/src/CustomerService.Api`, plus two test projects).
 - `apps/web`: a Next.js 16 (App Router, React 19, Tailwind 4, TypeScript) UI to list, search, add, edit and delete customers. It has no login and no database; it calls the API from the server only.
+- `apps/android`: a Kotlin + Jetpack Compose app (Gradle 8.13, AGP 8.13.0, JDK 21, compileSdk `android-37.0`, targetSdk 36, minSdk 26). The foundation has sign-in and change-password screens, a Keystore-encrypted session and an HTTPS-only API client.
 
-The browser never talks to the API. In Compose and Kubernetes only the web app is the public entry point (`API_BASE_URL` points it at the API).
+The browser never talks to the API; the web app is the public entry point for browsers (`API_BASE_URL` points it at the API). The Android app calls the API directly over HTTPS: through the `/api` ingress in dev and staging, and through the Compose `tls-proxy` (port 8443) locally. The prod API ingress stays off.
 
 API modules:
 
@@ -39,6 +40,17 @@ Web modules (all under `apps/web`):
 | `helm/customer-service-web/` | Helm chart; `values-dev.yaml`, `values-staging.yaml`, `values-prod.yaml`. See the `helm` skill |
 | `Dockerfile` | Multi-stage `node:24-alpine`, standalone output, UID 1001, port 3000. See the `docker` skill |
 
+Android modules (under `apps/android`, package `com.customerservice.app` in `app/src/main/java/...`):
+
+| Module | Responsibility |
+|---|---|
+| `config/ApiConfig.kt` | Rejects any `API_BASE_URL` that doesn't start with exactly `https://` |
+| `data/net/` | Retrofit/OkHttp API client: `AuthApi`, auth and 401 interceptors, `RedactingLogger`, `ApiResult` |
+| `data/session/` | `SessionStore`, `SessionRepository`, `TokenCipher` (Keystore encryption), `SessionEvent`, `AuthLog` |
+| `ui/` | `AppState` (navigation state), `AppRoot`/`AppHost`, and screens with view models in `ui/signin`, `ui/password`, `ui/config` |
+| `AppContainer.kt` | Manual dependency wiring, built in `CustomerServiceApp` |
+| `scripts/dev-tls.sh`, `scripts/nginx.conf` | Local dev CA and server certificate; nginx config for the Compose `tls-proxy` |
+
 ## Local setup
 
 - .NET SDK 10.0.x. Run `dotnet tool restore` once to get `dotnet-ef` 10.0.14 from `dotnet-tools.json`.
@@ -53,6 +65,13 @@ Web app:
 - `API_BASE_URL` (required, read at request time, never at build time): the API's base URL, for example `http://localhost:8080`. The app throws a clear error on the first API call if it's unset.
 - `SESSION_COOKIE_SECURE` (optional): the session cookie is `Secure` only when it equals `true`. Set `false` for plain-http local runs; Compose and `values-dev.yaml` already do, and the Helm default is `"true"`.
 - `apps/web/AGENTS.md` says this Next.js has breaking changes: read the matching guide in `apps/web/node_modules/next/dist/docs/` before changing Next.js APIs.
+
+Android app:
+
+- JDK 21 and an Android SDK with platform `android-37.0` installed. Point Gradle at the SDK with `sdk.dir=...` in the gitignored `apps/android/local.properties` (or set `ANDROID_HOME`).
+- `sh apps/android/scripts/dev-tls.sh` creates the gitignored `dev-certs/` (CA and server certificate) and copies the public CA to the gitignored `apps/android/app/src/debug/res/raw/dev_ca.pem`. Run it before building the debug app. It reuses an existing CA.
+- `docker compose --profile mobile up` (or `podman compose`) adds the `tls-proxy` on `https://localhost:8443`.
+- API base URL is the `API_BASE_URL` build config field in `apps/android/app/build.gradle.kts`: debug `https://10.0.2.2:8443` (the emulator's address for the host), release a placeholder, `https://customer-service.example.com`.
 
 Full walkthrough: the `dev-setup` skill.
 
@@ -77,6 +96,14 @@ npm test                                      # Jest + React Testing Library
 npm run test:coverage                         # fails below 80% lines, branches, functions and statements
 npm run build                                 # production build, output: "standalone"
 API_BASE_URL=http://localhost:8080 npm run dev     # http://localhost:3000; needs the API running
+```
+
+Android app, from `apps/android`:
+
+```bash
+./gradlew :app:testDebugUnitTest              # JVM unit tests (Robolectric)
+./gradlew :app:lintDebug                      # Android lint
+./gradlew :app:assembleDebug                  # debug APK; needs dev_ca.pem from dev-tls.sh
 ```
 
 With Podman, export `DOCKER_HOST="unix://$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}')"` before the Testcontainers run, and pass `--force-recreate` to `podman compose up` after a rebuild or the old container keeps running.
@@ -104,6 +131,13 @@ Web app:
 - **Delete keeps `search` and `page`** when it returns to the list. `safeReturnPath` parses the target and keeps it only if it resolves to `/customers` or a path under `/customers/` on this origin; anything else becomes `/customers`. Never replace that with a prefix test: `/customers/../x` passes one.
 - **Tests** are Jest + RTL in `src/__tests__`. `server-only` is mapped to an empty module in `jest.config.ts`. Mock `@/lib/api/customers`, `next/navigation` and `next/cache`; mock `fetch` only in `api.test.ts`. Coverage gate is 80% on all four metrics.
 
+Android app:
+
+- **HTTPS only.** `ApiConfig.check` rejects a base URL that isn't exactly `https://...` (no trimming, no case folding); the app shows the config error screen instead of calling the API.
+- **The token is stored Keystore-encrypted (`TokenCipher`) and never logged.** HTTP logging goes through `RedactingLogger`; auth events go through `AuthLog`, at Info in debug builds only.
+- **Tests that touch Android classes need `@Config(sdk = [35])`** (Robolectric doesn't support the compile SDK).
+- **Navigation follows `AppState`.** Change the screen by changing state, not by navigating imperatively.
+
 ## Database changes
 
 Migrations live in `apps/api/src/CustomerService.Api/Data/Migrations/` and target SQL Server.
@@ -130,7 +164,7 @@ Verify every change with `sh .claude/pre-pr-checks`.
 
 ## CI/CD
 
-There's no CI pipeline and no git remote yet. `.claude/pre-pr-checks` is the only gate. For the API it runs build, unmigrated-model check, unit tests with the 80% coverage gate and integration tests on SQLite. For the web app it runs, from `apps/web`, `npm ci` (only when `node_modules` is missing), `npm run lint`, `npm run typecheck`, `npm run test:coverage` (80% threshold) and `npm run build`. It then runs `helm lint`/`helm template` for every chart under `apps/*/helm/*` in each environment. Run it locally before any PR. Before merging changes to data access, also run the integration tests against SQL Server. Deployment is the Docker images from `apps/api/Dockerfile` and `apps/web/Dockerfile`, installed with the two Helm charts (API first, then web); there's no automated deploy. A future GitHub Actions workflow needs a Node 24 job beside the .NET one. See the `ci` and `helm` skills.
+There's no CI pipeline and no git remote yet. `.claude/pre-pr-checks` is the only gate. For the API it runs build, unmigrated-model check, unit tests with the 80% coverage gate and integration tests on SQLite. For the web app it runs, from `apps/web`, `npm ci` (only when `node_modules` is missing), `npm run lint`, `npm run typecheck`, `npm run test:coverage` (80% threshold) and `npm run build`. When `apps/android` exists, `java` is on PATH and an Android SDK is found (`ANDROID_HOME`, `ANDROID_SDK_ROOT` or `sdk.dir` in `apps/android/local.properties`) it runs `./gradlew :app:testDebugUnitTest :app:lintDebug` there; otherwise it prints a skip notice to stderr. Instrumented tests need an emulator and aren't part of it. It then runs `helm lint`/`helm template` for every chart under `apps/*/helm/*` in each environment. Run it locally before any PR. Before merging changes to data access, also run the integration tests against SQL Server. Deployment is the Docker images from `apps/api/Dockerfile` and `apps/web/Dockerfile`, installed with the two Helm charts (API first, then web); there's no automated deploy. A future GitHub Actions workflow needs a Node 24 job beside the .NET one and a JDK 21 + Android SDK job for the app. See the `ci` and `helm` skills.
 
 ## Superpowers (mandatory)
 
