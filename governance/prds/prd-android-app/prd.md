@@ -4,8 +4,8 @@ title: Android app with login and role-based permissions
 owner: Konstantinos Sidiropoulos
 approvers: [kosidis]
 min-approvals: 1
-initiative:
-epics: {}
+initiative: 24
+epics: {Customer Service Android/AAU: 25, Customer Service Android/AAZ: 26, Customer Service Android/ACU: 27, Customer Service Android/AUS: 28}
 ---
 
 # Android app with login and role-based permissions
