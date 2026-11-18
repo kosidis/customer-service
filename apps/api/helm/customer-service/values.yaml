@@ -52,6 +52,8 @@ containerPort: 8080
 service:
   port: 80
 
+# Off by default. Dev and staging turn it on to expose /api to the Android app;
+# prod keeps it off because only the web app calls the API there.
 ingress:
   enabled: false
   # Placeholder: set to your cluster's ingress class.

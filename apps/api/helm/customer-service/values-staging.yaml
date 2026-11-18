@@ -14,7 +14,18 @@ resources:
     cpu: 500m
     memory: 384Mi
 
-# Only the web app (apps/web) calls the API, over its ClusterIP Service, so the
-# API isn't exposed. The web chart's ingress takes the public host.
+# The Android app calls the API directly, so only /api is exposed (health
+# endpoints stay internal). The host is a placeholder: override it per cluster
+# with --set or a private values file. Create the TLS secret first. The web
+# app still reaches the API over its ClusterIP Service.
 ingress:
-  enabled: false
+  enabled: true
+  hosts:
+    - host: customer-api.staging.example
+      paths:
+        - path: /api
+          pathType: Prefix
+  tls:
+    - secretName: customer-service-api-tls
+      hosts:
+        - customer-api.staging.example

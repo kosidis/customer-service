@@ -1,4 +1,4 @@
-# Development: one small replica, no ingress (use kubectl port-forward).
+# Development: one small replica, ingress on for the local kind cluster (or use kubectl port-forward).
 replicaCount: 1
 
 aspnetcoreEnvironment: Development
@@ -14,5 +14,30 @@ resources:
     cpu: 250m
     memory: 256Mi
 
+# Local kind cluster (infra/kind-config.yaml) with Traefik: websecure NodePort
+# 30443 is mapped to localhost:443. Create the TLS secret first, from the
+# certificate that apps/android/scripts/dev-tls.sh generates:
+#   kubectl create secret tls customer-service-api-tls --cert=dev-certs/server.crt --key=dev-certs/server.key -n <ns>
+# Only /api is routed, so /health/live and /health/ready stay internal.
 ingress:
-  enabled: false
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  hosts:
+    # customer-api.localhost resolves to 127.0.0.1 on the host; the nip.io name
+    # resolves to 10.0.2.2, the Android emulator's address for the host.
+    - host: customer-api.localhost
+      paths:
+        - path: /api
+          pathType: Prefix
+    - host: api.10-0-2-2.nip.io
+      paths:
+        - path: /api
+          pathType: Prefix
+  tls:
+    - secretName: customer-service-api-tls
+      hosts:
+        - customer-api.localhost
+        - api.10-0-2-2.nip.io

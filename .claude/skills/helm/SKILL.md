@@ -55,7 +55,7 @@ Copy the closest `values-<env>.yaml`, adjust replicas, resources, ingress host a
 
 ## Install order and ingress
 
-Install the API chart first, then the web chart. The browser only talks to the web app, so the web chart's ingress owns the public host and the API chart's ingress is off in dev, staging and prod (turn it on with `--set ingress.enabled=true` only when you need external access to the API).
+Install the API chart first, then the web chart. The browser only talks to the web app, so the web chart's ingress owns the public host and the API chart's ingress is on in dev (Traefik on kind, hosts `customer-api.localhost` and `api.10-0-2-2.nip.io`) and staging (placeholder host `customer-api.staging.example`) so the Android app can reach `/api` over TLS with secret `customer-service-api-tls`, and off in prod because only the web app calls the API there (turn it on with `--set ingress.enabled=true` only when you need external access). Only `/api` is routed; health endpoints stay internal.
 
 ```bash
 helm upgrade --install customer-service apps/api/helm/customer-service -n <ns> \

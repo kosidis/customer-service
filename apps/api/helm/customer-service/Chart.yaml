@@ -2,5 +2,5 @@ apiVersion: v2
 name: customer-service
 description: Customer CRUD REST API (.NET 10, SQL Server)
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "1.0.0"
