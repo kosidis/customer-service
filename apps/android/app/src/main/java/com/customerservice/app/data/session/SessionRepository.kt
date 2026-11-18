@@ -9,6 +9,7 @@ import com.customerservice.app.data.net.MeResponse
 import com.customerservice.app.data.net.apiCall
 import com.customerservice.app.data.net.apiCallUnit
 import com.customerservice.app.ui.AppState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -91,8 +92,16 @@ class SessionRepository(
             _state.value = AppState.SignedOut
             return
         }
+        val previous = _state.value
         _state.value = AppState.Checking(null)
-        when (val result = apiCall { api.me() }) {
+        val result = try {
+            apiCall { api.me() }
+        } catch (e: CancellationException) {
+            // A cancelled check must not park the state at Checking(null), which has no Retry.
+            _state.value = previous
+            throw e
+        }
+        when (result) {
             is ApiResult.Ok -> _state.value = result.value.toState()
             is ApiResult.Failure -> if (result.failure == ApiFailure.Unauthorized) {
                 store.clearIf(token)

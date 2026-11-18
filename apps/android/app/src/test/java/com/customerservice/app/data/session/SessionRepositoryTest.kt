@@ -180,6 +180,23 @@ class SessionRepositoryTest {
     }
 
     @Test
+    fun start_cancelledDuringMe_restoresLaunchingAndCanStartAgain() = runTest {
+        store.save("t")
+        val meStarted = CompletableDeferred<Unit>()
+        api.meResults += { meStarted.complete(Unit); throw kotlinx.coroutines.CancellationException("destroyed") }
+        api.meResults += me("Admin")
+        val repo = repo()
+
+        val job = async { runCatching { repo.start() } }
+        job.await()
+
+        assertTrue(meStarted.isCompleted)
+        assertEquals(AppState.Launching, repo.state.value)
+        repo.start()
+        assertEquals(AppState.SignedIn("Admin"), repo.state.value)
+    }
+
+    @Test
     fun retry_afterNetworkError_signedIn() = runTest {
         store.save("t")
         api.meResults += { throw IOException("offline") }
