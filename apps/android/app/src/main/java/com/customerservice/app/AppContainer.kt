@@ -10,6 +10,7 @@ import com.customerservice.app.data.net.AuthApi
 import com.customerservice.app.data.net.AuthInterceptor
 import com.customerservice.app.data.net.RedactingLogger
 import com.customerservice.app.data.net.UnauthorizedInterceptor
+import com.customerservice.app.data.session.AuthLog
 import com.customerservice.app.data.session.SESSION_DATASTORE_NAME
 import com.customerservice.app.data.session.SessionEvent
 import com.customerservice.app.data.session.SessionRepository
@@ -64,7 +65,7 @@ class AppContainer(context: Context, baseUrl: String, debug: Boolean) {
         .build()
         .create(AuthApi::class.java)
 
-    val sessionRepository = SessionRepository(api, store, events, scope)
+    val sessionRepository = SessionRepository(api, store, events, scope, if (debug) AuthLog { Log.i("AuthEvents", it) } else AuthLog.None)
 
     private val started = AtomicBoolean(false)
 

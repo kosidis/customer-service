@@ -33,6 +33,7 @@ class SessionRepository(
     private val store: SessionStore,
     events: SharedFlow<SessionEvent>,
     scope: CoroutineScope,
+    private val log: AuthLog = AuthLog.None,
 ) {
     private val mutex = Mutex()
     private val _state = MutableStateFlow<AppState>(AppState.Launching)
@@ -42,7 +43,7 @@ class SessionRepository(
         scope.launch {
             events.collect { event ->
                 when (event) {
-                    SessionEvent.Expired -> transition { if (store.awaitToken() == null) _state.value = AppState.SignedOut }
+                    SessionEvent.Expired -> transition { if (store.awaitToken() == null) expireLocked() }
                 }
             }
         }
@@ -58,11 +59,15 @@ class SessionRepository(
 
     suspend fun signIn(username: String, password: String): ApiResult<Unit> = transition {
         when (val result = apiCall { api.login(LoginRequest(username, password)) }) {
-            is ApiResult.Failure -> result
+            is ApiResult.Failure -> {
+                log.info("Sign-in failed: ${result.failure.kind()}")
+                result
+            }
             is ApiResult.Ok -> {
                 val login = result.value
                 store.save(login.token)
                 _state.value = if (login.mustChangePassword) AppState.PasswordChange else AppState.SignedIn(login.role)
+                log.info("Sign-in succeeded")
                 ApiResult.Ok(Unit)
             }
         }
@@ -75,6 +80,7 @@ class SessionRepository(
             withContext(NonCancellable) {
                 store.clear()
                 _state.value = AppState.SignedOut
+                log.info("Signed out")
             }
         }
     }
@@ -102,14 +108,31 @@ class SessionRepository(
             throw e
         }
         when (result) {
-            is ApiResult.Ok -> _state.value = result.value.toState()
+            is ApiResult.Ok -> {
+                _state.value = result.value.toState()
+                log.info("Session restored")
+            }
             is ApiResult.Failure -> if (result.failure == ApiFailure.Unauthorized) {
                 store.clearIf(token)
-                _state.value = AppState.SignedOut
+                expireLocked()
             } else {
                 _state.value = AppState.Checking(result.failure)
             }
         }
+    }
+
+    private fun expireLocked() {
+        if (_state.value != AppState.SignedOut) log.info("Session expired")
+        _state.value = AppState.SignedOut
+    }
+
+    private fun ApiFailure.kind(): String = when (this) {
+        ApiFailure.Unauthorized -> "Unauthorized"
+        ApiFailure.Forbidden -> "Forbidden"
+        is ApiFailure.Validation -> "Validation"
+        ApiFailure.NotFound -> "NotFound"
+        ApiFailure.Conflict -> "Conflict"
+        ApiFailure.Unavailable -> "Unavailable"
     }
 
     private fun MeResponse.toState(): AppState =
