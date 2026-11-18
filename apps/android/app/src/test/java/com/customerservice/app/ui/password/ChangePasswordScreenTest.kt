@@ -4,7 +4,6 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -15,7 +14,6 @@ import com.customerservice.app.data.net.ApiResult
 import com.customerservice.app.data.session.SessionRepository
 import io.mockk.Runs
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -95,34 +93,18 @@ class ChangePasswordScreenTest {
     }
 
     @Test
-    fun ChangePassword_okThenCheckingUnavailable_showsMessageAndRetryCallsRepository() {
-        coEvery { repository.changePassword("old-pass", "new-pass") } coAnswers {
-            sessionState.value = AppState.Checking(ApiFailure.Unavailable)
-            ApiResult.Ok(Unit)
-        }
+    fun ChangePassword_sessionSignedOut_clearsTypedPasswords() {
         val viewModel = ChangePasswordViewModel(repository)
         compose.setContent { ChangePasswordScreen(viewModel, onSignOut = {}) }
-
         compose.onNodeWithTag(CURRENT_PASSWORD_TAG).performTextInput("old-pass")
         compose.onNodeWithTag(NEW_PASSWORD_TAG).performTextInput("new-pass")
-        compose.onNodeWithTag(SUBMIT_TAG).performClick()
+        assertEquals("old-pass", viewModel.state.value.currentPassword)
+
+        sessionState.value = AppState.SignedOut
         compose.waitForIdle()
 
         assertEquals("", viewModel.state.value.currentPassword)
         assertEquals("", viewModel.state.value.newPassword)
-        compose.onNodeWithText("Something went wrong. Try again.").assertIsDisplayed()
-        compose.onNodeWithText("Retry").assertIsDisplayed().performClick()
-        compose.waitForIdle()
-        coVerify(exactly = 1) { repository.retry() }
-    }
-
-    @Test
-    fun ChangePassword_checkingInFlight_showsNoErrorAndDisablesSubmit() {
-        sessionState.value = AppState.Checking(null)
-        compose.setContent { ChangePasswordScreen(ChangePasswordViewModel(repository), onSignOut = {}) }
-
-        compose.onNodeWithText("Something went wrong. Try again.").assertDoesNotExist()
-        compose.onNodeWithText("Retry").assertDoesNotExist()
-        compose.onNodeWithTag(SUBMIT_TAG).assertIsNotEnabled()
+        assertEquals("", editableText(CURRENT_PASSWORD_TAG))
     }
 }

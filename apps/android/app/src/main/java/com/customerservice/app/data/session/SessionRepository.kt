@@ -78,8 +78,13 @@ class SessionRepository(
             apiCallUnit { api.logout() }
         } finally {
             withContext(NonCancellable) {
-                store.clear()
                 _state.value = AppState.SignedOut
+                try {
+                    store.clear()
+                } catch (_: Exception) {
+                    // The user is signed out in the UI regardless; never include the token or the cause's message.
+                    log.info("Sign-out could not clear the stored session")
+                }
                 log.info("Signed out")
             }
         }
@@ -92,7 +97,19 @@ class SessionRepository(
         result
     }
 
+    /** Any unexpected failure (not cancellation) ends in `Checking(Unavailable)`, never a crash. */
     private suspend fun checkLocked() {
+        try {
+            checkSessionLocked()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            _state.value = AppState.Checking(ApiFailure.Unavailable)
+            log.info("Session check failed unexpectedly")
+        }
+    }
+
+    private suspend fun checkSessionLocked() {
         val token = store.awaitToken()
         if (token == null) {
             _state.value = AppState.SignedOut
@@ -122,8 +139,9 @@ class SessionRepository(
     }
 
     private fun expireLocked() {
-        if (_state.value != AppState.SignedOut) log.info("Session expired")
+        val wasSignedOut = _state.value == AppState.SignedOut
         _state.value = AppState.SignedOut
+        if (!wasSignedOut) log.info("Session expired")
     }
 
     private fun ApiFailure.kind(): String = when (this) {

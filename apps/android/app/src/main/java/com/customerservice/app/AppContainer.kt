@@ -76,6 +76,15 @@ class AppContainer(context: Context, baseUrl: String, debug: Boolean) {
         if (started.compareAndSet(false, true)) scope.launch { sessionRepository.start() }
     }
 
+    /** Retry and sign-out run in the process-lifetime scope, so a rotation mid-call cannot cancel them. */
+    fun retry() {
+        scope.launch { sessionRepository.retry() }
+    }
+
+    fun signOut() {
+        scope.launch { sessionRepository.signOut() }
+    }
+
     /**
      * Cancels the container's scope, which releases its DataStore file so another container can open it.
      * Production never calls this (the container lives as long as the process); the instrumented tests use it

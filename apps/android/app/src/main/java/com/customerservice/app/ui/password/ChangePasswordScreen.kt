@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -53,16 +52,12 @@ fun ChangePasswordScreen(viewModel: ChangePasswordViewModel, onSignOut: () -> Un
             errors = state.newPasswordErrors,
             tag = NEW_PASSWORD_TAG,
         )
-        if (state.checking) CircularProgressIndicator()
-        state.sessionFailure?.let { failure ->
-            ErrorMessage(failure, onRetry = if (failure == ApiFailure.Unavailable) viewModel::retry else null)
-        }
         state.failure?.let { failure ->
             ErrorMessage(failure, onRetry = if (failure == ApiFailure.Unavailable) viewModel::submit else null)
         }
         Button(
             onClick = viewModel::submit,
-            enabled = !state.submitting && !state.checking && state.sessionFailure == null,
+            enabled = !state.submitting,
             modifier = Modifier.fillMaxWidth().testTag(SUBMIT_TAG),
         ) { Text("Change password") }
         TextButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth().testTag(SIGN_OUT_TAG)) {

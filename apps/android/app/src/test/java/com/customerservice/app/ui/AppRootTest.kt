@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.navigation.NavHostController
+import com.customerservice.app.data.net.ApiFailure
 import com.customerservice.app.data.session.SessionRepository
 import com.customerservice.app.ui.config.CONFIG_ERROR_TITLE
 import com.customerservice.app.ui.password.ChangePasswordViewModel
@@ -43,6 +44,7 @@ class AppRootTest {
     private var state by mutableStateOf<AppState>(AppState.SignedOut)
     private var controller: NavHostController? = null
     private var signOuts = 0
+    private var retries = 0
 
     private fun show(initial: AppState) {
         state = initial
@@ -51,7 +53,7 @@ class AppRootTest {
                 state = state,
                 signInViewModel = signInViewModel,
                 changePasswordViewModel = changePasswordViewModel,
-                onRetry = {},
+                onRetry = { retries++ },
                 onSignOut = { signOuts++ },
                 onNavController = { controller = it },
             )
@@ -128,5 +130,32 @@ class AppRootTest {
         state = AppState.SignedIn("Admin")
         compose.waitForIdle()
         assertEquals(ROUTE_CUSTOMERS, currentRoute())
+    }
+
+    @Test
+    fun AppRoot_checkingForbidden_offersRetryAndSignOut() {
+        show(AppState.Checking(ApiFailure.Forbidden))
+
+        compose.onNodeWithText("Retry").assertIsDisplayed().performClick()
+        compose.onNodeWithTag(SIGN_OUT_TAG).assertIsDisplayed().performClick()
+
+        assertEquals(1, retries)
+        assertEquals(1, signOuts)
+    }
+
+    @Test
+    fun AppRoot_checkingUnavailable_offersRetryAndSignOut() {
+        show(AppState.Checking(ApiFailure.Unavailable))
+
+        compose.onNodeWithText("Retry").assertIsDisplayed()
+        compose.onNodeWithTag(SIGN_OUT_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun AppRoot_checkingInFlight_showsNoRetryOrSignOut() {
+        show(AppState.Checking(null))
+
+        compose.onNodeWithText("Retry").assertDoesNotExist()
+        compose.onNodeWithTag(SIGN_OUT_TAG).assertDoesNotExist()
     }
 }

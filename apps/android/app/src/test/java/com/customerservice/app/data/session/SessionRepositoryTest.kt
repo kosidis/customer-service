@@ -46,9 +46,11 @@ class SessionRepositoryTest {
 
     private class CountingDataStore(private val delegate: DataStore<Preferences>) : DataStore<Preferences> by delegate {
         var updates = 0
+        var failUpdates = false
 
         override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
             updates++
+            if (failUpdates) throw IOException("disk full")
             return delegate.updateData(transform)
         }
     }
@@ -318,6 +320,53 @@ class SessionRepositoryTest {
 
         assertEquals(AppState.SignedOut, repo.state.value)
         assertNull(store.awaitToken())
+    }
+
+    @Test
+    fun signOut_clearThrows_stillSignedOutAndNoExceptionEscapes() = runTest {
+        store.save("t")
+        api.meResults += me()
+        val repo = repo()
+        repo.start()
+        dataStore.failUpdates = true
+
+        repo.signOut()
+
+        assertEquals(AppState.SignedOut, repo.state.value)
+    }
+
+    @Test
+    fun start_meBodyUnparsable_checkingUnavailableNoCrash() = runTest {
+        store.save("t")
+        api.meResults += { throw kotlinx.serialization.SerializationException("bad body") }
+        val repo = repo()
+
+        repo.start()
+
+        assertEquals(AppState.Checking(ApiFailure.Unavailable), repo.state.value)
+        assertEquals("t", store.awaitToken())
+    }
+
+    @Test
+    fun start_meThrowsUnexpected_checkingUnavailableNoCrash() = runTest {
+        store.save("t")
+        api.meResults += { throw IllegalStateException("boom") }
+        val repo = repo()
+
+        repo.start()
+
+        assertEquals(AppState.Checking(ApiFailure.Unavailable), repo.state.value)
+    }
+
+    @Test
+    fun signIn_loginBodyUnparsable_returnsFailureNoCrash() = runTest {
+        api.loginResult = { throw kotlinx.serialization.SerializationException("bad body") }
+        val repo = repo()
+
+        val result = repo.signIn("u", "p")
+
+        assertEquals(ApiResult.Failure(ApiFailure.Unavailable), result)
+        assertEquals(AppState.Launching, repo.state.value)
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.customerservice.app.data.net
 
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -92,11 +93,16 @@ private fun Response<*>.failureResult(parseErrors: (String) -> Map<String, List<
     return ApiResult.Failure(failure)
 }
 
-/** Runs a Retrofit call, mapping a network failure ([IOException]) to [ApiFailure.Unavailable]. */
+/**
+ * Runs a Retrofit call, mapping a network failure or an unparsable body (any non-cancellation exception)
+ * to [ApiFailure.Unavailable].
+ */
 inline fun <T> apiCall(block: () -> Response<T>): ApiResult<T> =
     try {
         block().toApiResult()
-    } catch (_: IOException) {
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
         ApiResult.Failure(ApiFailure.Unavailable)
     }
 
@@ -104,6 +110,8 @@ inline fun <T> apiCall(block: () -> Response<T>): ApiResult<T> =
 inline fun apiCallUnit(block: () -> Response<Unit>): ApiResult<Unit> =
     try {
         block().toUnitResult()
-    } catch (_: IOException) {
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
         ApiResult.Failure(ApiFailure.Unavailable)
     }

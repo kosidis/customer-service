@@ -1,6 +1,7 @@
 package com.customerservice.app.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
@@ -10,6 +11,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,9 +27,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.customerservice.app.data.net.ApiFailure
 import com.customerservice.app.ui.password.ChangePasswordScreen
 import com.customerservice.app.ui.password.ChangePasswordViewModel
+import com.customerservice.app.ui.password.SIGN_OUT_TAG
 import com.customerservice.app.ui.signin.SignInScreen
 import com.customerservice.app.ui.signin.SignInViewModel
 
@@ -51,7 +53,7 @@ fun AppRoot(
     onNavController: (NavHostController) -> Unit = {},
 ) {
     when (state) {
-        AppState.Launching, is AppState.Checking -> Splash(state, onRetry)
+        AppState.Launching, is AppState.Checking -> Splash(state, onRetry, onSignOut)
         else -> key(state::class) {
             val navController = rememberNavController()
             onNavController(navController)
@@ -78,13 +80,17 @@ fun AppRoot(
 }
 
 @Composable
-private fun Splash(state: AppState, onRetry: () -> Unit) {
+private fun Splash(state: AppState, onRetry: () -> Unit, onSignOut: () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val failure = (state as? AppState.Checking)?.failure
         if (failure == null) {
             CircularProgressIndicator()
         } else {
-            ErrorMessage(failure, onRetry = if (failure == ApiFailure.Unavailable) onRetry else null)
+            // Every failure kind can be retried or abandoned, so the user is never stranded on the splash.
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                ErrorMessage(failure, onRetry = onRetry)
+                TextButton(onClick = onSignOut, modifier = Modifier.testTag(SIGN_OUT_TAG)) { Text("Sign out") }
+            }
         }
     }
 }
