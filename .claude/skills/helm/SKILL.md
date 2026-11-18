@@ -5,7 +5,7 @@ description: WHEN changing a Helm chart (apps/api/helm/customer-service or apps/
 
 # Helm charts
 
-Two charts, one per app, both `apiVersion: v2`, `version` 0.1.0, `appVersion` 1.0.0, built and tested with Helm 4:
+Two charts, one per app, both `apiVersion: v2`, `appVersion` 1.0.0 (the API chart `version` 0.2.0, the web chart 0.1.0), built and tested with Helm 4:
 
 - `apps/api/helm/customer-service`: the API (most of this skill).
 - `apps/web/helm/customer-service-web`: the web app (see "Web chart" below).
