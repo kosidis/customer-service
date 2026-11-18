@@ -2,7 +2,7 @@
 id: ADR-1
 prd: prd-android-app
 title: Build the Android app in Kotlin with Jetpack Compose in the monorepo
-status: proposed
+status: accepted
 kind: architecture
 date: 2026-11-18
 deciders: [K.Sidiropoulos]
