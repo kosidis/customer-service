@@ -1,0 +1,20 @@
+# Traefik Helm values for a local kind cluster
+service:
+  spec:
+    type: NodePort
+
+ports:
+  web:
+    nodePort: 30080      # mapped to localhost:80 by kind-config.yaml
+  websecure:
+    nodePort: 30443      # mapped to localhost:443 by kind-config.yaml
+
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+  name: traefik
+
+providers:
+  kubernetesIngress:
+    enabled: true
+

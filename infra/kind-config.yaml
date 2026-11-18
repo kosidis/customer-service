@@ -1,0 +1,18 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: litellm
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # Traefik web (HTTP) NodePort -> localhost:80
+      - containerPort: 30080
+        hostPort: 80
+        protocol: TCP
+      # Traefik websecure (HTTPS) NodePort -> localhost:443
+      - containerPort: 30443
+        hostPort: 443
+        protocol: TCP
+      # Direct LiteLLM NodePort -> localhost:4000 (optional, bypasses ingress)
+      - containerPort: 30400
+        hostPort: 4000
+        protocol: TCP
