@@ -1,5 +1,7 @@
+using CustomerService.Api.Auth;
 using CustomerService.Api.Contracts;
 using CustomerService.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CustomerService.Api.Controllers;
@@ -23,6 +25,8 @@ public class CustomersController(ICustomerService customerService) : ControllerB
         Ok(await customerService.GetByIdAsync(id, cancellationToken));
 
     [HttpPost]
+    [Authorize(Policy = AuthPolicies.AdminOnly)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<CustomerResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
@@ -34,6 +38,8 @@ public class CustomersController(ICustomerService customerService) : ControllerB
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = AuthPolicies.AdminOnly)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<CustomerResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -43,6 +49,8 @@ public class CustomersController(ICustomerService customerService) : ControllerB
         Ok(await customerService.UpdateAsync(id, request, cancellationToken));
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AuthPolicies.AdminOnly)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)

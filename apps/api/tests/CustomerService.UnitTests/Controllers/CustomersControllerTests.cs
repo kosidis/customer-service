@@ -1,6 +1,9 @@
+using System.Reflection;
+using CustomerService.Api.Auth;
 using CustomerService.Api.Contracts;
 using CustomerService.Api.Controllers;
 using CustomerService.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
@@ -79,6 +82,41 @@ public class CustomersControllerTests
 
         Assert.IsType<NoContentResult>(result);
         _service.Verify(s => s.DeleteAsync(id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(nameof(CustomersController.Create))]
+    [InlineData(nameof(CustomersController.Update))]
+    [InlineData(nameof(CustomersController.Delete))]
+    public void Create_Update_Delete_RequireAdminOnlyPolicy(string method)
+    {
+        var attribute = typeof(CustomersController).GetMethod(method)!.GetCustomAttribute<AuthorizeAttribute>();
+
+        Assert.NotNull(attribute);
+        Assert.Equal(AuthPolicies.AdminOnly, attribute.Policy);
+    }
+
+    [Theory]
+    [InlineData(nameof(CustomersController.List))]
+    [InlineData(nameof(CustomersController.GetById))]
+    public void List_GetById_HaveNoPolicyOverride(string method)
+    {
+        var info = typeof(CustomersController).GetMethod(method)!;
+
+        Assert.Null(info.GetCustomAttribute<AuthorizeAttribute>());
+        Assert.Null(typeof(CustomersController).GetCustomAttribute<AuthorizeAttribute>());
+    }
+
+    [Fact]
+    public void AdminOnlyPolicy_RequiresPasswordChangedRequirement()
+    {
+        var options = new AuthorizationOptions();
+        AuthPolicies.Configure(options);
+
+        var policy = options.GetPolicy(AuthPolicies.AdminOnly);
+
+        Assert.NotNull(policy);
+        Assert.Contains(policy.Requirements, r => r is PasswordChangedRequirement);
     }
 
     private static CustomerResponse BuildResponse() =>

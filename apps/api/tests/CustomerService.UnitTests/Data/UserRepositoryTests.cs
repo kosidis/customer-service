@@ -121,6 +121,56 @@ public sealed class UserRepositoryTests : IDisposable
         await Assert.ThrowsAsync<DbUpdateException>(() => _sut.SaveChangesAsync(CancellationToken.None));
     }
 
+    [Fact]
+    public async Task AnyAsync_NoUsers_ReturnsFalse()
+    {
+        Assert.False(await _sut.AnyAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task AnyAsync_OneUser_ReturnsTrue()
+    {
+        _dbContext.Users.Add(BuildUser("ada", Role.Viewer));
+        await _dbContext.SaveChangesAsync();
+
+        Assert.True(await _sut.AnyAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task AddUserAsync_NewUser_Persists()
+    {
+        await _sut.AddUserAsync(BuildUser("ada", Role.Admin), CancellationToken.None);
+
+        await using var verifyContext = CreateContext();
+        var stored = await verifyContext.Users.SingleAsync();
+        Assert.Equal("ada", stored.Username);
+        Assert.Equal(Role.Admin, stored.Role);
+    }
+
+    [Fact]
+    public async Task Role_ColumnIsNonNullBoundedString_AndRoundTrips()
+    {
+        var property = _dbContext.Model.FindEntityType(typeof(User))!.FindProperty(nameof(User.Role))!;
+        Assert.False(property.IsNullable);
+        Assert.Equal(20, property.GetMaxLength());
+        _dbContext.Users.Add(BuildUser("vera", Role.Viewer));
+        _dbContext.Users.Add(BuildUser("ada", Role.Admin));
+        await _dbContext.SaveChangesAsync();
+
+        await using var command = _connection.CreateCommand();
+        command.CommandText = "SELECT Role FROM Users ORDER BY Username";
+        var roles = new List<string>();
+        await using (var reader = await command.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                roles.Add(reader.GetString(0));
+            }
+        }
+
+        Assert.Equal(["Admin", "Viewer"], roles);
+    }
+
     private static User BuildUser(string username, Role role) => new()
     {
         Username = username,
