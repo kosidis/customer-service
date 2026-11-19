@@ -15,7 +15,8 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function CustomersPage({ searchParams }: { searchParams: SearchParams }) {
-  await requireUser();
+  const user = await requireUser();
+  const canWrite = user.role === "Admin";
   const params = await searchParams;
   const search = first(params.search)?.trim() || undefined;
   const parsed = Number.parseInt(first(params.page) ?? "1", 10);
@@ -32,12 +33,14 @@ export default async function CustomersPage({ searchParams }: { searchParams: Se
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Customers</h1>
-        <Link href="/customers/new" className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">
-          Add customer
-        </Link>
+        {canWrite && (
+          <Link href="/customers/new" className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">
+            Add customer
+          </Link>
+        )}
       </div>
       <SearchBox defaultValue={search} />
-      <CustomerTable customers={result.items} returnTo={pageHref(result.page, search)} />
+      <CustomerTable customers={result.items} returnTo={pageHref(result.page, search)} canWrite={canWrite} />
       <Pagination page={result.page} totalPages={result.totalPages} search={search} />
     </div>
   );

@@ -15,9 +15,11 @@ export function formatUpdated(iso: string): string {
 export function CustomerTable({
   customers,
   returnTo,
+  canWrite = false,
 }: {
   customers: Customer[];
   returnTo?: string;
+  canWrite?: boolean;
 }) {
   if (customers.length === 0) {
     return (
@@ -37,7 +39,9 @@ export function CustomerTable({
             <th scope="col" className="px-4 py-2 font-medium">Phone</th>
             <th scope="col" className="px-4 py-2 font-medium">Domain</th>
             <th scope="col" className="px-4 py-2 font-medium">Updated</th>
-            <th scope="col" className="sticky right-0 border-l border-slate-200 bg-slate-100 px-4 py-2 font-medium"><span className="sr-only">Actions</span></th>
+            {canWrite && (
+              <th scope="col" className="sticky right-0 border-l border-slate-200 bg-slate-100 px-4 py-2 font-medium"><span className="sr-only">Actions</span></th>
+            )}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -52,22 +56,24 @@ export function CustomerTable({
                 <div className="line-clamp-3 max-w-[14rem] break-words" title={c.domain ?? undefined}>{c.domain ?? "-"}</div>
               </td>
               <td className="px-4 py-2 whitespace-nowrap">{formatUpdated(c.updatedAtUtc)}</td>
-              <td className="sticky right-0 whitespace-nowrap border-l border-slate-100 bg-white px-4 py-2">
-                <div className="flex justify-end gap-3">
-                  <Link
-                    href={`/customers/${encodeURIComponent(c.id)}/edit`}
-                    className="text-blue-700 underline"
-                    aria-label={`Edit ${c.firstName} ${c.lastName}`}
-                  >
-                    Edit
-                  </Link>
-                  <DeleteCustomerButton
-                    id={c.id}
-                    name={`${c.firstName} ${c.lastName}`}
-                    returnTo={returnTo}
-                  />
-                </div>
-              </td>
+              {canWrite && (
+                <td className="sticky right-0 whitespace-nowrap border-l border-slate-100 bg-white px-4 py-2">
+                  <div className="flex justify-end gap-3">
+                    <Link
+                      href={`/customers/${encodeURIComponent(c.id)}/edit`}
+                      className="text-blue-700 underline"
+                      aria-label={`Edit ${c.firstName} ${c.lastName}`}
+                    >
+                      Edit
+                    </Link>
+                    <DeleteCustomerButton
+                      id={c.id}
+                      name={`${c.firstName} ${c.lastName}`}
+                      returnTo={returnTo}
+                    />
+                  </div>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
