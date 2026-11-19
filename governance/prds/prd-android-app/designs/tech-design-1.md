@@ -59,9 +59,12 @@ stateDiagram-v2
     Checking --> PasswordChange: me returns mustChangePassword
     Checking --> SignedIn: me returns role
     Checking --> SignedOut: 401
-    Checking --> Checking: network or 5xx error, user retries
-    SignedOut --> Checking: sign-in succeeds
-    PasswordChange --> SignedIn: change-password returns 204
+    Checking --> Checking: any other failure, user retries
+    Checking --> SignedOut: failure, user signs out
+    SignedOut --> SignedIn: sign-in succeeds
+    SignedOut --> PasswordChange: sign-in succeeds, mustChangePassword
+    PasswordChange --> Checking: change-password returns 204
+    SignedIn --> Checking: voluntary change-password returns 204
     SignedIn --> SignedOut: sign out
     SignedIn --> SignedOut: any call returns 401
     PasswordChange --> SignedOut: sign out or 401
@@ -75,11 +78,11 @@ Pieces, all under `apps/android` (package `com.customerservice.app`, names are p
 
     This design also owns the shared result type. `ApiResult` maps every response to an `ApiFailure` variant (`Unauthorized`, `Forbidden`, `Validation(fieldErrors)`, `NotFound`, `Conflict`, `Unavailable`) or a value. Field-error keys are normalised the way `apps/web/src/lib/api/http.ts` does it: case-insensitive, and for JSON-path keys such as `$.phoneNumber` the last segment is used. `ApiError` UI is one shared composable, `ErrorMessage`, that shows the fixed text "Something went wrong. Try again." for `Unavailable`. Whether it offers a **Retry** button is the caller's choice (`tech-design-3` and `tech-design-4` set the rule). `tech-design-2` adds only the 403 handling on top of this type.
 4. **Session store (ADR-2).** `TokenCipher` wraps an AES-256 GCM key in the Android Keystore. `SessionStore` writes the ciphertext and IV to a Preferences DataStore file that backup rules exclude (`android:allowBackup="false"` plus `data_extraction_rules.xml` and `fullBackupContent` exclusions). It exposes the token as a `Flow` and an `awaitToken()` read for the interceptor. It keeps a copy in memory so a request never waits on disk.
-5. **Navigation guard (`AAU-0030`).** A root `AppState` (`Launching`, `SignedOut`, `PasswordChange`, `SignedIn(role)`) drives the `NavHost`. Only the `SignedIn` branch contains customer or user routes, so no customer screen exists in the graph until sign-in. Deep links are not declared. `SecureWindow(enabled)` is a composable that sets `FLAG_SECURE` on the activity window when a screen enters and clears it when the screen leaves. The sign-in, change-password and create-user screens use it; customer screens do not.
+5. **Navigation guard (`AAU-0030`).** A root `AppState` (`Launching`, `Checking(failure)`, `SignedOut`, `PasswordChange`, `SignedIn(role)`) drives the `NavHost`. Only the `SignedIn` branch contains customer or user routes, so no customer screen exists in the graph until sign-in. Deep links are not declared. `SecureWindow(enabled)` is a composable that sets `FLAG_SECURE` on the activity window when a screen enters and clears it when the screen leaves. The sign-in, change-password and create-user screens use it; customer screens do not.
 6. **Sign-in (`AAU-0010`, `AAU-0040`).** `SignInScreen` and `SignInViewModel` post `{ username, password }`. The username is sent as typed; the API trims and lower-cases it. Any 401 or 400 shows one fixed message. A network or 5xx failure shows the shared `ErrorMessage` with a **Retry** button (piece 3). The password lives only in the field's state and is cleared after a failure.
 7. **Sign-out (`AAU-0020`).** `POST /api/auth/logout`, then the store is cleared whatever the answer, so a failed call cannot leave the user signed in on the phone. The app returns to sign-in and the back stack is emptied.
 8. **Session survival (`AAU-0050`).** The token is the only persisted state. Launch reads it without a network call, then calls `me`. A 401 ends the session; a network error keeps the token and offers retry, so a phone with no signal does not sign the user out.
-9. **Forced and voluntary password change (`AAU-0080` to `AAU-0100`).** `ChangePasswordScreen` posts `{ currentPassword, newPassword }` to `POST /api/auth/change-password`. Field errors keyed `currentPassword` and `newPassword` (matched case-insensitively, as `ApiResult` does) show next to the fields and the typed values stay, as the web form does (`AAU-0080`). While `AppState` is `PasswordChange`, the graph contains only this screen and a sign-out action (`AAU-0090`). After a 204, the app calls `GET /api/auth/me` again and moves to `SignedIn(role)` with no new sign-in (`AAU-0100`). Signed-in users reach the same screen from an account menu.
+9. **Forced and voluntary password change (`AAU-0080` to `AAU-0100`).** `ChangePasswordScreen` posts `{ currentPassword, newPassword }` to `POST /api/auth/change-password`. Field errors keyed `currentPassword` and `newPassword` (matched case-insensitively, as `ApiResult` does) show next to the fields and the typed values stay, as the web form does (`AAU-0080`). While `AppState` is `PasswordChange`, the graph contains only this screen and a sign-out action (`AAU-0090`). After a 204, the app moves to `Checking`, calls `GET /api/auth/me` again and then reaches `SignedIn(role)`, `PasswordChange` or `SignedOut`, with no new sign-in (`AAU-0100`). While `Checking` carries a failure, the splash offers **Retry** for every failure kind and a **Sign out** action, so the user is never stranded. Signed-in users reach the same screen from an account menu.
 
 ## Affected repos & cross-repo contracts
 

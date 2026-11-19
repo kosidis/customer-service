@@ -20,7 +20,10 @@ It needs `dotnet` (.NET 10) and `npm` (Node 24), and fails if any step fails:
 3. `dotnet test apps/api/tests/CustomerService.UnitTests /p:CollectCoverage=true` (80% line gate)
 4. `INTEGRATION_TEST_DB=sqlite dotnet test apps/api/tests/CustomerService.IntegrationTests`
 5. Web, in `apps/web`: `npm ci` (only when `node_modules` is missing), then `npm run lint`, `npm run typecheck`, `npm run test:coverage` (80% threshold) and `npm run build`.
-6. Helm: `helm lint` and `helm template` for every chart under `apps/*/helm/*` (`customer-service` and `customer-service-web`) with each environment's values file. Skipped with a warning if `helm` isn't installed.
+6. Android, in `apps/android`: `./gradlew :app:testDebugUnitTest :app:lintDebug`. Runs only when `apps/android` exists, `java` is on PATH and an Android SDK is found (`ANDROID_HOME`, `ANDROID_SDK_ROOT` or `sdk.dir` in `apps/android/local.properties`); otherwise it prints a skip notice to stderr and the script still passes. It is not run with `--offline`, so a cold Gradle cache needs network. The SDK needs platform `android-37.0`.
+7. Helm: `helm lint` and `helm template` for every chart under `apps/*/helm/*` (`customer-service` and `customer-service-web`) with each environment's values file. Skipped with a warning if `helm` isn't installed.
+
+Android gaps: there is still no CI pipeline for the app (a future workflow needs a JDK 21 job with an Android SDK, platform `android-37.0`). `lintDebug` could not run offline here (the androidTest classpath needs `androidx.core:core-ktx:1.13.0` artifacts that weren't cached); it needs network on a cold cache. Instrumented tests (`connectedAndroidTest`) need an emulator and are not part of `pre-pr-checks`.
 
 It uses SQLite for speed. Before merging changes to queries, the model or migrations, also run the SQL Server suite by hand (`dotnet test apps/api/tests/CustomerService.IntegrationTests`; see the `testcontainers` skill).
 
@@ -55,6 +58,8 @@ npm run test:coverage
 npm run build
 docker build -t customer-service-web:ci apps/web
 ```
+
+For the Android app add a job with `actions/setup-java` (Temurin 21), `android-actions/setup-android` plus `sdkmanager "platforms;android-37.0"`, and Gradle caching, running `./gradlew :app:testDebugUnitTest :app:lintDebug` in `apps/android`.
 
 Add a Helm job (or steps) that loops over `apps/*/helm/*` as the script does.
 

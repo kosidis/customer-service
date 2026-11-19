@@ -43,6 +43,24 @@ run "web: typecheck" npm --prefix apps/web run typecheck
 run "web: unit tests + 80% coverage gate" npm --prefix apps/web run test:coverage
 run "web: build" npm --prefix apps/web run build
 
+# Android (apps/android). Needs a JDK and an Android SDK (platform android-37.0);
+# skipped with a notice when either is missing. Needs network on a cold Gradle cache.
+android_sdk=""
+if [ -n "${ANDROID_HOME:-}" ]; then
+  android_sdk="$ANDROID_HOME"
+elif [ -n "${ANDROID_SDK_ROOT:-}" ]; then
+  android_sdk="$ANDROID_SDK_ROOT"
+elif [ -f apps/android/local.properties ] && grep -q '^sdk\.dir=' apps/android/local.properties; then
+  android_sdk="local.properties"
+fi
+if [ ! -d apps/android ]; then
+  :
+elif command -v java >/dev/null 2>&1 && [ -n "$android_sdk" ]; then
+  run "android: unit tests + lint" sh -c "cd apps/android && ./gradlew :app:testDebugUnitTest :app:lintDebug"
+else
+  echo "==> android: skipping (need java on PATH and an Android SDK via ANDROID_HOME, ANDROID_SDK_ROOT or apps/android/local.properties sdk.dir)" >&2
+fi
+
 # Helm: every chart under apps/*/helm, for each environment's values file.
 if command -v helm >/dev/null 2>&1; then
   for chart in apps/*/helm/*/; do

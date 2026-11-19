@@ -13,3 +13,5 @@ StrykerOutput/
 .tokensave/
 .claude/worktrees/
 .claude/evals/results/
+dev-certs/
+apps/android/app/src/debug/res/raw/dev_ca.pem

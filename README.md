@@ -127,9 +127,9 @@ Each app has its own chart: `apps/api/helm/customer-service` for the API and `ap
 | Replicas | 1 | 2 | HPA, 3 to 10 at 70% CPU |
 | CPU request / limit | 50m / 250m | 100m / 500m | 250m / 1000m |
 | Memory request / limit | 128Mi / 256Mi | 192Mi / 384Mi | 256Mi / 512Mi |
-| Ingress | off | off | off |
+| Ingress | on (kind, Traefik) | on | off |
 
-The API is reached only inside the cluster through its `ClusterIP` Service (port 80); the web chart's ingress owns the public host. Turn the API ingress on with `--set ingress.enabled=true` only if you need to call the API from outside.
+The web app reaches the API inside the cluster through its `ClusterIP` Service (port 80), and the web chart's ingress owns the public host. For the Android app, the API chart's ingress is on in dev (hosts `customer-api.localhost` and `api.10-0-2-2.nip.io`, class `traefik`) and in staging (placeholder host `customer-api.staging.example`). It routes only `/api` over TLS with Secret `customer-service-api-tls`, so the health endpoints stay internal. Prod keeps it off, because only the web app calls the API there; turn it on with `--set ingress.enabled=true` only if you need to call the API from outside.
 
 1. Push the image to your registry:
 
@@ -153,7 +153,7 @@ The API is reached only inside the cluster through its `ClusterIP` Service (port
       --set image.repository=<registry>/customer-service-api --set image.tag=<tag>
     ```
 
-The ingress hosts, TLS Secret names and the `nginx` ingress class in the values files are placeholders; set your own.
+The staging ingress host (`customer-api.staging.example`), the TLS Secret and the `nginx` ingress class are placeholders; set your own. Dev's hosts and `traefik` class are for the local kind cluster. Create the `customer-service-api-tls` Secret before installing with an ingress on.
 
 The pods run migrations at start-up (`database.applyMigrationsOnStartup`). Several replicas can start at once: EF Core serialises migrations with a lock, and the app retries while another replica is creating the database. Probes use `/health/live` for startup and liveness, and `/health/ready` for readiness, so a database outage takes pods out of the Service without restarting them. `values.schema.json` rejects a values file without cpu and memory requests and limits, or without a database Secret.
 

@@ -41,5 +41,18 @@ services:
     ports:
       - "3000:3000"
 
+  # TLS front for the Android debug build. Opt in with --profile mobile; run
+  # sh apps/android/scripts/dev-tls.sh first to create dev-certs/.
+  tls-proxy:
+    image: nginx:1.27.3-alpine
+    profiles: ["mobile"]
+    depends_on:
+      - api
+    volumes:
+      - ./dev-certs:/etc/nginx/certs:ro
+      - ./apps/android/scripts/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8443:443"
+
 volumes:
   sqlserver-data:
